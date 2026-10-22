@@ -1,0 +1,240 @@
+import 'package:dio/dio.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../core/network/api_endpoints.dart';
+import '../../domain/models/task_model.dart';
+import '../../domain/models/comment_model.dart';
+
+abstract class TasksRemoteDataSource {
+  Future<TaskModel> createTask({
+    required String projectId,
+    required String title,
+    String? description,
+    TaskStatus? status,
+    TaskPriority? priority,
+    String? assigneeId,
+    DateTime? dueAt,
+    double? position,
+  });
+
+  Future<List<TaskModel>> listTasks(
+    String projectId, {
+    TaskStatus? status,
+    TaskPriority? priority,
+    String? assigneeId,
+    String? search,
+  });
+
+  Future<TaskModel> getTaskById(String taskId);
+
+  Future<TaskModel> updateTask(
+    String taskId, {
+    String? title,
+    String? description,
+    TaskStatus? status,
+    TaskPriority? priority,
+    String? assigneeId,
+    DateTime? dueAt,
+    double? position,
+    int? version,
+  });
+
+  Future<TaskModel> transitionStatus(
+    String taskId,
+    TaskStatus status, {
+    double? position,
+    int? version,
+  });
+
+  Future<void> deleteTask(String taskId);
+
+  // Comments
+  Future<CommentModel> createComment(String taskId, String body);
+  Future<List<CommentModel>> listComments(String taskId);
+  Future<void> deleteComment(String commentId);
+}
+
+class TasksRemoteDataSourceImpl implements TasksRemoteDataSource {
+  final Dio dio;
+
+  TasksRemoteDataSourceImpl({required this.dio});
+
+  @override
+  Future<TaskModel> createTask({
+    required String projectId,
+    required String title,
+    String? description,
+    TaskStatus? status,
+    TaskPriority? priority,
+    String? assigneeId,
+    DateTime? dueAt,
+    double? position,
+  }) async {
+    try {
+      final response = await dio.post(
+        ApiEndpoints.projectTasks(projectId),
+        data: {
+          'title': title,
+          if (description != null && description.isNotEmpty)
+            'description': description,
+          if (status != null) 'status': status.value,
+          if (priority != null) 'priority': priority.value,
+          if (assigneeId != null) 'assigneeId': assigneeId,
+          if (dueAt != null) 'dueAt': dueAt.toIso8601String(),
+          if (position != null) 'position': position,
+        },
+      );
+      return TaskModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<TaskModel>> listTasks(
+    String projectId, {
+    TaskStatus? status,
+    TaskPriority? priority,
+    String? assigneeId,
+    String? search,
+  }) async {
+    try {
+      final response = await dio.get(
+        ApiEndpoints.projectTasks(projectId),
+        queryParameters: {
+          if (status != null) 'status': status.value,
+          if (priority != null) 'priority': priority.value,
+          if (assigneeId != null) 'assigneeId': assigneeId,
+          if (search != null && search.isNotEmpty) 'search': search,
+          'limit': 100,
+        },
+      );
+
+      final data = response.data;
+      final List<dynamic> list = data is Map ? (data['tasks'] ?? []) : data;
+      return list
+          .map((item) => TaskModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<TaskModel> getTaskById(String taskId) async {
+    try {
+      final response = await dio.get(ApiEndpoints.task(taskId));
+      return TaskModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<TaskModel> updateTask(
+    String taskId, {
+    String? title,
+    String? description,
+    TaskStatus? status,
+    TaskPriority? priority,
+    String? assigneeId,
+    DateTime? dueAt,
+    double? position,
+    int? version,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (title != null) data['title'] = title;
+      if (description != null) data['description'] = description;
+      if (status != null) data['status'] = status.value;
+      if (priority != null) data['priority'] = priority.value;
+      if (assigneeId != null) data['assigneeId'] = assigneeId;
+      if (dueAt != null) data['dueAt'] = dueAt.toIso8601String();
+      if (position != null) data['position'] = position;
+      if (version != null) data['version'] = version;
+
+      final response = await dio.patch(
+        ApiEndpoints.task(taskId),
+        data: data,
+      );
+      return TaskModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<TaskModel> transitionStatus(
+    String taskId,
+    TaskStatus status, {
+    double? position,
+    int? version,
+  }) async {
+    try {
+      final response = await dio.patch(
+        ApiEndpoints.taskStatus(taskId),
+        data: {
+          'status': status.value,
+          if (position != null) 'position': position,
+          if (version != null) 'version': version,
+        },
+      );
+      return TaskModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteTask(String taskId) async {
+    try {
+      await dio.delete(ApiEndpoints.task(taskId));
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<CommentModel> createComment(String taskId, String body) async {
+    try {
+      final response = await dio.post(
+        ApiEndpoints.taskComments(taskId),
+        data: {'body': body},
+      );
+      return CommentModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<List<CommentModel>> listComments(String taskId) async {
+    try {
+      final response = await dio.get(ApiEndpoints.taskComments(taskId));
+      final list = response.data as List<dynamic>;
+      return list
+          .map((item) => CommentModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteComment(String commentId) async {
+    try {
+      await dio.delete(ApiEndpoints.comment(commentId));
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Failure _handleDioError(DioException e) {
+    if (e.response != null && e.response?.data is Map) {
+      final errorData = e.response!.data as Map<String, dynamic>;
+      final err = errorData['error'];
+      final message = err is Map ? err['message'] : err?.toString();
+      return ServerFailure(message ?? 'Server error occurred');
+    }
+    return ServerFailure(e.message ?? 'Network connection error');
+  }
+}
