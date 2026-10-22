@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/realtime/socket_service.dart';
 import '../../domain/models/project.dart';
 import '../../../tasks/domain/models/task_model.dart';
 import '../../../tasks/presentation/providers/task_providers.dart';
@@ -26,15 +28,56 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   TaskStatus? _selectedStatusFilter;
+  List<StreamSubscription> _socketSubscriptions = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _setupRealtime();
+  }
+
+  void _setupRealtime() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final socketService = ref.read(socketServiceProvider);
+      socketService.connect();
+      socketService.joinProject(widget.projectId);
+
+      _socketSubscriptions = [
+        socketService.onTaskCreated.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
+            ref.invalidate(projectDetailProvider(widget.projectId));
+          }
+        }),
+        socketService.onTaskUpdated.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
+          }
+        }),
+        socketService.onTaskStatusChanged.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
+          }
+        }),
+        socketService.onTaskDeleted.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
+            ref.invalidate(projectDetailProvider(widget.projectId));
+          }
+        }),
+      ];
+    });
   }
 
   @override
   void dispose() {
+    for (final sub in _socketSubscriptions) {
+      sub.cancel();
+    }
+    _socketSubscriptions.clear();
+    ref.read(socketServiceProvider).leaveProject(widget.projectId);
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -144,6 +187,44 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
             ),
           ],
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.35)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    const Text(
+                      'LIVE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.green,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: tasksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/realtime/socket_service.dart';
 import '../../domain/models/task_model.dart';
 import '../../domain/models/comment_model.dart';
 import '../providers/task_providers.dart';
@@ -22,9 +24,44 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   bool _isSendingComment = false;
   bool _isUpdatingTask = false;
+  List<StreamSubscription> _subscriptions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final socketService = ref.read(socketServiceProvider);
+      socketService.connect();
+
+      _subscriptions = [
+        socketService.onCommentCreated.listen((event) {
+          if (event['taskId'] == widget.taskId && mounted) {
+            ref.invalidate(taskCommentsProvider(widget.taskId));
+            ref.invalidate(taskDetailProvider(widget.taskId));
+          }
+        }),
+        socketService.onTaskUpdated.listen((event) {
+          final taskData = event['task'];
+          if (taskData != null && taskData['id'] == widget.taskId && mounted) {
+            ref.invalidate(taskDetailProvider(widget.taskId));
+          }
+        }),
+        socketService.onTaskStatusChanged.listen((event) {
+          if (event['taskId'] == widget.taskId && mounted) {
+            ref.invalidate(taskDetailProvider(widget.taskId));
+          }
+        }),
+      ];
+    });
+  }
 
   @override
   void dispose() {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
     _commentController.dispose();
     super.dispose();
   }
