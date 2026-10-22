@@ -8,7 +8,11 @@ import '../../../workspaces/presentation/widgets/workspace_switcher_sheet.dart';
 import '../../../workspaces/presentation/widgets/create_workspace_dialog.dart';
 import '../../../workspaces/presentation/widgets/accept_invite_dialog.dart';
 import '../../../workspaces/presentation/widgets/invite_member_dialog.dart';
+import 'package:go_router/go_router.dart';
 import '../../../workspaces/presentation/screens/workspace_settings_screen.dart';
+import '../../../projects/presentation/providers/project_providers.dart';
+import '../../../projects/presentation/widgets/project_card.dart';
+import '../../../projects/presentation/widgets/create_project_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -32,6 +36,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final user = authState.user;
     final workspaceState = ref.watch(workspaceControllerProvider);
     final currentWorkspace = workspaceState.currentWorkspace;
+    final projectsAsync = currentWorkspace != null
+        ? ref.watch(workspaceProjectsProvider(currentWorkspace.id))
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -84,6 +91,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 await ref
                     .read(workspaceControllerProvider.notifier)
                     .loadWorkspaces();
+                if (currentWorkspace != null) {
+                  ref.invalidate(
+                      workspaceProjectsProvider(currentWorkspace.id));
+                }
               },
               child: ListView(
                 padding: const EdgeInsets.all(20.0),
@@ -261,7 +272,130 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
+
+                    // PROJECTS SECTION
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Projects',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => CreateProjectDialog.show(
+                            context,
+                            currentWorkspace.id,
+                          ),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('New Project'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    if (projectsAsync != null)
+                      projectsAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        error: (err, _) => Card(
+                          color: AppColors.surfaceVariant,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline,
+                                    color: AppColors.error),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text('Failed to load projects: $err'),
+                                ),
+                                TextButton(
+                                  onPressed: () => ref.invalidate(
+                                    workspaceProjectsProvider(
+                                        currentWorkspace.id),
+                                  ),
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        data: (projects) {
+                          if (projects.isEmpty) {
+                            return Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24.0),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary
+                                            .withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.folder_outlined,
+                                        color: AppColors.primary,
+                                        size: 32,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'No Projects Yet',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Create your first project to start organizing tasks on Kanban boards.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    AppButton(
+                                      text: 'Create Project',
+                                      icon: Icons.add,
+                                      onPressed: () =>
+                                          CreateProjectDialog.show(
+                                        context,
+                                        currentWorkspace.id,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            children: projects.map((p) {
+                              return ProjectCard(
+                                project: p,
+                                onTap: () {
+                                  context.push('/projects/${p.id}');
+                                },
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
+
+                    const SizedBox(height: 24),
 
                     // Quick Actions
                     const Text(
@@ -327,7 +461,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(width: 12),
                           const Expanded(
                             child: Text(
-                              'Phase 2 Complete: Multi-tenant Workspaces, RBAC, and Hashed Invitations active.',
+                              'Phase 3 & 4 Active: Projects, Kanban Board, Tasks & Optimistic Concurrency.',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: AppColors.darkTextSecondary,

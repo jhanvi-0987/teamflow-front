@@ -7,6 +7,9 @@ import '../features/authentication/presentation/screens/login_screen.dart';
 import '../features/authentication/presentation/screens/register_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
 
+import '../features/projects/presentation/screens/project_detail_screen.dart';
+import '../features/tasks/presentation/screens/task_detail_screen.dart';
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
 
@@ -24,6 +27,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/projects/:id',
+        builder: (context, state) {
+          final projectId = state.pathParameters['id']!;
+          return ProjectDetailScreen(projectId: projectId);
+        },
+      ),
+      GoRoute(
+        path: '/tasks/:id',
+        builder: (context, state) {
+          final taskId = state.pathParameters['id']!;
+          return TaskDetailScreen(taskId: taskId);
+        },
       ),
     ],
     redirect: (BuildContext context, GoRouterState state) {

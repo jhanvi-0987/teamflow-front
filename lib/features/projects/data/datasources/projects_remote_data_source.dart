@@ -121,8 +121,14 @@ class ProjectsRemoteDataSourceImpl implements ProjectsRemoteDataSource {
       final errorData = e.response!.data as Map<String, dynamic>;
       final err = errorData['error'];
       final message = err is Map ? err['message'] : err?.toString();
-      return ServerFailure(message ?? 'Server error occurred');
+      return ServerFailure(
+        message: message ?? 'Server error occurred',
+        statusCode: e.response?.statusCode,
+      );
     }
-    return ServerFailure(e.message ?? 'Network connection error');
+    return ServerFailure(
+      message: e.message ?? 'Network connection error',
+      statusCode: e.response?.statusCode,
+    );
   }
 }

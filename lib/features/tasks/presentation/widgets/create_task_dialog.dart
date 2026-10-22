@@ -245,7 +245,7 @@ class _CreateTaskDialogState extends ConsumerState<CreateTaskDialog> {
               const SizedBox(height: 8),
               membersAsync.when(
                 data: (members) => DropdownButtonFormField<String>(
-                  value: _assigneeId,
+                  initialValue: _assigneeId,
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
@@ -257,15 +257,15 @@ class _CreateTaskDialogState extends ConsumerState<CreateTaskDialog> {
                     ),
                     ...members.map(
                       (m) => DropdownMenuItem<String>(
-                        value: m.user.id,
-                        child: Text('${m.user.name} (${m.role.displayName})'),
+                        value: m.userId,
+                        child: Text('${m.name} (${m.role.displayName})'),
                       ),
                     ),
                   ],
                   onChanged: (val) => setState(() => _assigneeId = val),
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const SizedBox(),
+                error: (_, _) => const SizedBox(),
               ),
               const SizedBox(height: 24),
 

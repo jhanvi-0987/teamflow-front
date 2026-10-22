@@ -1,3 +1,4 @@
+// ignore_for_file: use_null_aware_elements
 import 'package:dio/dio.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/network/api_endpoints.dart';
@@ -233,8 +234,14 @@ class TasksRemoteDataSourceImpl implements TasksRemoteDataSource {
       final errorData = e.response!.data as Map<String, dynamic>;
       final err = errorData['error'];
       final message = err is Map ? err['message'] : err?.toString();
-      return ServerFailure(message ?? 'Server error occurred');
+      return ServerFailure(
+        message: message ?? 'Server error occurred',
+        statusCode: e.response?.statusCode,
+      );
     }
-    return ServerFailure(e.message ?? 'Network connection error');
+    return ServerFailure(
+      message: e.message ?? 'Network connection error',
+      statusCode: e.response?.statusCode,
+    );
   }
 }

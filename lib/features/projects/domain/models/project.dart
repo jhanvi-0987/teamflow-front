@@ -29,6 +29,34 @@ class Project extends Equatable {
 
   bool get isActive => status == 'ACTIVE';
 
+  Project copyWith({
+    String? id,
+    String? workspaceId,
+    String? key,
+    String? name,
+    String? description,
+    String? status,
+    int? taskCount,
+    Map<String, int>? tasksByStatus,
+    String? userRole,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Project(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      key: key ?? this.key,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      status: status ?? this.status,
+      taskCount: taskCount ?? this.taskCount,
+      tasksByStatus: tasksByStatus ?? this.tasksByStatus,
+      userRole: userRole ?? this.userRole,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   factory Project.fromJson(Map<String, dynamic> json) {
     Map<String, int>? statusMap;
     if (json['tasksByStatus'] is Map) {
