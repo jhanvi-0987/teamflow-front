@@ -52,7 +52,11 @@ abstract class TasksRemoteDataSource {
   Future<CommentModel> createComment(String taskId, String body);
   Future<List<CommentModel>> listComments(String taskId);
   Future<void> deleteComment(String commentId);
+
+  // User search for assignment
+  Future<List<UserSummary>> searchUsers(String query);
 }
+
 
 class TasksRemoteDataSourceImpl implements TasksRemoteDataSource {
   final Dio dio;
@@ -229,7 +233,21 @@ class TasksRemoteDataSourceImpl implements TasksRemoteDataSource {
     }
   }
 
+  @override
+  Future<List<UserSummary>> searchUsers(String query) async {
+    try {
+      final response = await dio.get(ApiEndpoints.searchUsers(query));
+      final list = response.data as List<dynamic>;
+      return list
+          .map((item) => UserSummary.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
   Failure _handleDioError(DioException e) {
+
     if (e.response != null && e.response?.data is Map) {
       final errorData = e.response!.data as Map<String, dynamic>;
       final err = errorData['error'];

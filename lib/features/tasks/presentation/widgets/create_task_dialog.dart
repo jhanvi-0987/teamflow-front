@@ -6,6 +6,7 @@ import '../../../../core/widgets/app_text_field.dart';
 import '../../domain/models/task_model.dart';
 import '../providers/task_providers.dart';
 import '../../../workspaces/presentation/providers/workspace_providers.dart';
+import 'assignee_picker_sheet.dart';
 
 class CreateTaskDialog extends ConsumerStatefulWidget {
   final String projectId;
@@ -45,7 +46,7 @@ class _CreateTaskDialogState extends ConsumerState<CreateTaskDialog> {
   final _descriptionController = TextEditingController();
   late TaskStatus _status;
   TaskPriority _priority = TaskPriority.medium;
-  String? _assigneeId;
+  UserSummary? _selectedAssignee;
   DateTime? _dueAt;
   bool _isLoading = false;
 
@@ -74,23 +75,29 @@ class _CreateTaskDialogState extends ConsumerState<CreateTaskDialog> {
         description: _descriptionController.text.trim(),
         status: _status,
         priority: _priority,
-        assigneeId: _assigneeId,
+        assigneeId: _selectedAssignee?.id,
         dueAt: _dueAt,
       );
 
-      // Invalidate tasks cache to trigger UI refresh
+      // Invalidate tasks cache and workspace members (in case external user was auto-added)
       ref.invalidate(projectTasksProvider(widget.projectId));
+      ref.invalidate(workspaceMembersProvider(widget.workspaceId));
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Task created successfully!'),
+          SnackBar(
+            content: Text(
+              _selectedAssignee != null
+                  ? 'Task created and assigned to ${_selectedAssignee!.name.isNotEmpty ? _selectedAssignee!.name : _selectedAssignee!.email}!'
+                  : 'Task created successfully!',
+            ),
             backgroundColor: AppColors.success,
           ),
         );
       }
     } catch (e) {
+
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -233,40 +240,113 @@ class _CreateTaskDialogState extends ConsumerState<CreateTaskDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Assignee Dropdown
-              const Text(
-                'Assignee',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              membersAsync.when(
-                data: (members) => DropdownButtonFormField<String>(
-                  initialValue: _assigneeId,
-                  decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  ),
-                  hint: const Text('Unassigned'),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: null,
-                      child: Text('Unassigned'),
+              // Assignee Selector
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Assignee',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
-                    ...members.map(
-                      (m) => DropdownMenuItem<String>(
-                        value: m.userId,
-                        child: Text('${m.name} (${m.role.displayName})'),
+                  ),
+                  if (_selectedAssignee != null)
+                    GestureDetector(
+                      onTap: () => setState(() => _selectedAssignee = null),
+                      child: const Text(
+                        'Clear',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ],
-                  onChanged: (val) => setState(() => _assigneeId = val),
-                ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const SizedBox(),
+                ],
               ),
+              const SizedBox(height: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => AssigneePickerSheet.show(
+                  context,
+                  workspaceId: widget.workspaceId,
+                  currentAssigneeId: _selectedAssignee?.id,
+                  onSelected: (user) => setState(() => _selectedAssignee = user),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _selectedAssignee != null
+                          ? AppColors.primary
+                          : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: _selectedAssignee != null
+                            ? AppColors.primary
+                            : AppColors.border,
+                        child: Icon(
+                          _selectedAssignee != null
+                              ? Icons.person
+                              : Icons.person_search_outlined,
+                          size: 16,
+                          color: _selectedAssignee != null
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedAssignee != null
+                                  ? (_selectedAssignee!.name.isNotEmpty
+                                      ? _selectedAssignee!.name
+                                      : _selectedAssignee!.email)
+                                  : 'Unassigned (Tap to search by email)',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: _selectedAssignee != null
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: _selectedAssignee != null
+                                    ? AppColors.textPrimary
+                                    : AppColors.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_selectedAssignee != null)
+                              Text(
+                                _selectedAssignee!.email,
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 24),
 
               Row(

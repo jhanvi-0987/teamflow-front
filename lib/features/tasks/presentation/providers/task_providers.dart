@@ -33,3 +33,11 @@ final taskCommentsProvider =
   final repo = ref.watch(tasksRepositoryProvider);
   return repo.listComments(taskId);
 });
+
+final userSearchProvider =
+    FutureProvider.family<List<UserSummary>, String>((ref, query) async {
+  if (query.trim().isEmpty) return [];
+  final repo = ref.watch(tasksRepositoryProvider);
+  return repo.searchUsers(query);
+});
+

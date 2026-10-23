@@ -13,6 +13,10 @@ class ApiEndpoints {
 
   // User endpoints
   static const String me = '/me';
+  static const String usersSearch = '/users/search';
+  static String searchUsers(String query) =>
+      '/users/search?query=${Uri.encodeComponent(query)}';
+
 
   // Workspace endpoints
   static const String workspaces = '/workspaces';

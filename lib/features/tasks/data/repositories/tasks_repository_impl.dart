@@ -112,4 +112,10 @@ class TasksRepositoryImpl implements TasksRepository {
   Future<void> deleteComment(String commentId) {
     return remoteDataSource.deleteComment(commentId);
   }
+
+  @override
+  Future<List<UserSummary>> searchUsers(String query) {
+    return remoteDataSource.searchUsers(query);
+  }
 }
+

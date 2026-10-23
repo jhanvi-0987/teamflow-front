@@ -48,4 +48,8 @@ abstract class TasksRepository {
   Future<CommentModel> createComment(String taskId, String body);
   Future<List<CommentModel>> listComments(String taskId);
   Future<void> deleteComment(String commentId);
+
+  // User search
+  Future<List<UserSummary>> searchUsers(String query);
 }
+

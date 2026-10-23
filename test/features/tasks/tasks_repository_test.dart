@@ -149,7 +149,24 @@ class MockTasksRepository implements TasksRepository {
   Future<void> deleteComment(String commentId) async {
     _comments.removeWhere((c) => c.id == commentId);
   }
+
+  @override
+  Future<List<UserSummary>> searchUsers(String query) async {
+    final clean = query.trim().toLowerCase();
+    if (clean.isEmpty) return [];
+
+    final allUsers = [
+      const UserSummary(id: 'user-1', name: 'Alice', email: 'alice@example.com'),
+      const UserSummary(id: 'user-2', name: 'Solo External', email: 'solo@example.com'),
+    ];
+
+    return allUsers.where((u) {
+      return u.email.toLowerCase().contains(clean) ||
+          u.name.toLowerCase().contains(clean);
+    }).toList();
+  }
 }
+
 
 void main() {
   group('Tasks & Kanban Flow (Unit)', () {
@@ -232,5 +249,16 @@ void main() {
       expect(comments.length, 1);
       expect(comments.first.author.name, 'Alice');
     });
+
+    test('User Search: searchUsers should filter users across platform by email', () async {
+      final results = await repo.searchUsers('solo');
+      expect(results.length, 1);
+      expect(results.first.email, 'solo@example.com');
+      expect(results.first.name, 'Solo External');
+
+      final empty = await repo.searchUsers('nonexistent@example.com');
+      expect(empty.isEmpty, true);
+    });
   });
 }
+

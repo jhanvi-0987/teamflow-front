@@ -7,6 +7,9 @@ import '../../../../core/realtime/socket_service.dart';
 import '../../domain/models/task_model.dart';
 import '../../domain/models/comment_model.dart';
 import '../providers/task_providers.dart';
+import '../../../workspaces/presentation/providers/workspace_providers.dart';
+import '../widgets/assignee_picker_sheet.dart';
+
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
   final String taskId;
@@ -146,7 +149,63 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     }
   }
 
+  Future<void> _updateAssignee(TaskModel task) async {
+    final workspace = ref.read(currentWorkspaceProvider);
+    if (workspace == null) return;
+
+    await AssigneePickerSheet.show(
+      context,
+      workspaceId: workspace.id,
+      currentAssigneeId: task.assignee?.id,
+      onSelected: (UserSummary? selectedUser) async {
+        setState(() => _isUpdatingTask = true);
+        try {
+          final repo = ref.read(tasksRepositoryProvider);
+          await repo.updateTask(
+            task.id,
+            assigneeId: selectedUser?.id,
+            version: task.version,
+          );
+
+          ref.invalidate(taskDetailProvider(widget.taskId));
+          ref.invalidate(projectTasksProvider(task.projectId));
+          ref.invalidate(workspaceMembersProvider(workspace.id));
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  selectedUser != null
+                      ? 'Task assigned to ${selectedUser.name.isNotEmpty ? selectedUser.name : selectedUser.email}'
+                      : 'Task unassigned',
+                ),
+                backgroundColor: AppColors.primary,
+              ),
+            );
+          }
+        } catch (e) {
+          ref.invalidate(taskDetailProvider(widget.taskId));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  e.toString().contains('409')
+                      ? 'Version Conflict: Task modified by someone else. Reloaded latest version.'
+                      : 'Failed to update assignee: $e',
+                ),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isUpdatingTask = false);
+        }
+      },
+    );
+  }
+
   Future<void> _sendComment() async {
+
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
 
@@ -463,51 +522,71 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            Column(
-                              children: [
-                                const Text(
-                                  'ASSIGNEE',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => _updateAssignee(task),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                child: Column(
                                   children: [
-                                    CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: AppColors.primary,
-                                      child: Text(
-                                        task.assignee?.name.isNotEmpty == true
-                                            ? task.assignee!.name
-                                                .substring(0, 1)
-                                                .toUpperCase()
-                                            : '?',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text(
+                                          'ASSIGNEE',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.textSecondary,
+                                          ),
                                         ),
-                                      ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.edit_outlined,
+                                          size: 11,
+                                          color: AppColors.primary.withValues(alpha: 0.7),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      task.assignee?.name ?? 'Unassigned',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 12,
+                                          backgroundColor: AppColors.primary,
+                                          child: Text(
+                                            task.assignee?.name.isNotEmpty == true
+                                                ? task.assignee!.name
+                                                    .substring(0, 1)
+                                                    .toUpperCase()
+                                                : '?',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          task.assignee?.name ?? 'Unassigned',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
                             Container(
                                 width: 1,
                                 height: 32,
                                 color: AppColors.border),
+
                             Column(
                               children: [
                                 const Text(
