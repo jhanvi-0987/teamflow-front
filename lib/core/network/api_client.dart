@@ -6,8 +6,11 @@ import 'auth_interceptor.dart';
 class ApiClient {
   final Dio dio;
 
-  ApiClient({Dio? customDio, TokenStorage? tokenStorage})
-      : dio = customDio ??
+  ApiClient({
+    Dio? customDio,
+    TokenStorage? tokenStorage,
+    void Function(String)? onTokenRefreshed,
+  })  : dio = customDio ??
             Dio(
               BaseOptions(
                 baseUrl: ApiEndpoints.baseUrl,
@@ -20,7 +23,9 @@ class ApiClient {
               ),
             ) {
     if (tokenStorage != null) {
-      dio.interceptors.add(AuthInterceptor(tokenStorage, dio));
+      dio.interceptors.add(
+        AuthInterceptor(tokenStorage, dio, onTokenRefreshed: onTokenRefreshed),
+      );
     }
   }
 }

@@ -15,7 +15,7 @@ abstract class WorkspacesRemoteDataSource {
   Future<void> leaveWorkspace(String workspaceId);
 
   // Members
-  Future<List<WorkspaceMember>> getMembers(String workspaceId);
+  Future<List<WorkspaceMember>> getMembers(String workspaceId, {String? query});
   Future<WorkspaceMember> updateMemberRole(
     String workspaceId,
     String userId,
@@ -126,9 +126,11 @@ class WorkspacesRemoteDataSourceImpl implements WorkspacesRemoteDataSource {
   }
 
   @override
-  Future<List<WorkspaceMember>> getMembers(String workspaceId) async {
+  Future<List<WorkspaceMember>> getMembers(String workspaceId, {String? query}) async {
     try {
-      final response = await dio.get(ApiEndpoints.workspaceMembers(workspaceId));
+      final response = await dio.get(
+        ApiEndpoints.workspaceMembers(workspaceId, query: query),
+      );
       final list = response.data as List<dynamic>;
       return list
           .map((item) => WorkspaceMember.fromJson(item as Map<String, dynamic>))
@@ -239,7 +241,10 @@ class WorkspacesRemoteDataSourceImpl implements WorkspacesRemoteDataSource {
   @override
   Future<Invitation> previewInvitation(String token) async {
     try {
-      final response = await dio.get(ApiEndpoints.invitationsPreview(token.trim()));
+      final response = await dio.post(
+        ApiEndpoints.invitationsPreviewPost,
+        data: {'token': token.trim()},
+      );
       return Invitation.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw _handleDioError(e);

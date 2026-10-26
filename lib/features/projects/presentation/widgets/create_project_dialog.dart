@@ -14,6 +14,7 @@ class CreateProjectDialog extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context, String workspaceId) {
     return showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => CreateProjectDialog(workspaceId: workspaceId),
     );
   }
@@ -71,9 +72,20 @@ class _CreateProjectDialogState extends ConsumerState<CreateProjectDialog> {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Project created successfully!'),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Text(
+                  'Project "${_nameController.text.trim()}" created!',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
             backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -84,6 +96,8 @@ class _CreateProjectDialogState extends ConsumerState<CreateProjectDialog> {
           SnackBar(
             content: Text(e.toString().replaceFirst('Exception: ', '')),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -93,100 +107,145 @@ class _CreateProjectDialogState extends ConsumerState<CreateProjectDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.border, width: 1.2),
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: AppColors.border.withValues(alpha: 0.6), width: 1.2),
       ),
       backgroundColor: AppColors.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.border),
+      elevation: 16,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.folder_open_rounded, color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.folder_open, color: AppColors.primary),
-                  ),
-                  const SizedBox(width: 14),
-                  const Text(
-                    'Create Project',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Create Project',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.4,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Organize and track tasks for your team',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              AppTextField(
-                label: 'Project Name',
-                hint: 'e.g. Mobile Redesign',
-                controller: _nameController,
-                onChanged: _onNameChanged,
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Project name is required';
-                  }
-                  if (val.trim().length < 2) {
-                    return 'Name must be at least 2 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              AppTextField(
-                label: 'Project Key',
-                hint: 'e.g. MOB (uppercase letters/numbers)',
-                controller: _keyController,
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Key is required';
-                  }
-                  final trimmed = val.trim().toUpperCase();
-                  if (!RegExp(r'^[A-Z0-9]{2,10}$').hasMatch(trimmed)) {
-                    return '2-10 uppercase alphanumeric characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              AppTextField(
-                label: 'Description (Optional)',
-                hint: 'Brief overview of this project',
-                controller: _descriptionController,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: 'Cancel',
-                      isSecondary: true,
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
                       onPressed: () => Navigator.of(context).pop(),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AppButton(
-                      text: 'Create',
-                      isLoading: _isLoading,
-                      onPressed: _submit,
+                  ],
+                ),
+                const SizedBox(height: 22),
+
+                // Name Field
+                AppTextField(
+                  label: 'Project Name',
+                  hint: 'e.g. Mobile App Redesign',
+                  controller: _nameController,
+                  onChanged: _onNameChanged,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Project name is required';
+                    }
+                    if (val.trim().length < 2) {
+                      return 'Name must be at least 2 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Key Field
+                AppTextField(
+                  label: 'Project Key',
+                  hint: 'e.g. MOB (uppercase letters/numbers)',
+                  controller: _keyController,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Key is required';
+                    }
+                    final trimmed = val.trim().toUpperCase();
+                    if (!RegExp(r'^[A-Z0-9]{2,10}$').hasMatch(trimmed)) {
+                      return '2-10 uppercase alphanumeric characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Description Field
+                AppTextField(
+                  label: 'Description (Optional)',
+                  hint: 'Brief overview or goal of this project',
+                  controller: _descriptionController,
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 24),
+
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(
+                        text: 'Cancel',
+                        isSecondary: true,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: AppButton(
+                        text: 'Create Project',
+                        icon: Icons.check_rounded,
+                        isLoading: _isLoading,
+                        onPressed: _submit,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

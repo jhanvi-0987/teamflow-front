@@ -99,7 +99,13 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Moved to ${newStatus.displayName}'),
+            content: Row(
+              children: [
+                Icon(newStatus.icon, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text('Moved to ${newStatus.displayName}'),
+              ],
+            ),
             duration: const Duration(seconds: 1),
             backgroundColor: AppColors.primary,
           ),
@@ -129,38 +135,52 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
     final tasksAsync = ref.watch(projectTasksProvider(widget.projectId));
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
         titleSpacing: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.4)),
+            ),
+            child: const Icon(Icons.arrow_back_rounded, size: 18),
+          ),
+          onPressed: () => context.pop(),
+        ),
         title: projectAsync.when(
           data: (project) => Row(
             children: [
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                  ),
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   project.key,
                   style: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   project.name,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ),
@@ -169,34 +189,69 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
           loading: () => const Text('Loading project...'),
           error: (_, _) => const Text('Project'),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(
-              icon: Icon(Icons.view_kanban_outlined, size: 20),
-              text: 'Kanban Board',
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.4)),
             ),
-            Tab(
-              icon: Icon(Icons.format_list_bulleted, size: 20),
-              text: 'Task List',
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicatorPadding: const EdgeInsets.all(3),
+              labelColor: Colors.white,
+              unselectedLabelColor: AppColors.textSecondary,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+              dividerColor: Colors.transparent,
+              tabs: const [
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.view_kanban_outlined, size: 18),
+                      SizedBox(width: 6),
+                      Text('Board'),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.format_list_bulleted_rounded, size: 18),
+                      SizedBox(width: 6),
+                      Text('List'),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
+          // Live indicator
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.35)),
+                  color: AppColors.successLight,
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -204,9 +259,15 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                     Container(
                       width: 7,
                       height: 7,
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
+                      decoration: BoxDecoration(
+                        color: AppColors.success,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.success.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -214,9 +275,9 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                       'LIVE',
                       style: TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.green,
-                        letterSpacing: 0.6,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.success,
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ],
@@ -227,60 +288,89 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
         ],
       ),
       body: tasksAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (err, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-              const SizedBox(height: 16),
-              Text(
-                'Failed to load tasks: $err',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.error),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  ref.invalidate(projectTasksProvider(widget.projectId));
-                  ref.invalidate(projectDetailProvider(widget.projectId));
-                },
-                child: const Text('Retry'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.error_outline_rounded,
+                      size: 40, color: AppColors.error),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Failed to load tasks',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$err',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    ref.invalidate(projectTasksProvider(widget.projectId));
+                    ref.invalidate(projectDetailProvider(widget.projectId));
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
         data: (tasks) {
           return TabBarView(
             controller: _tabController,
             children: [
-              // Tab 1: Kanban Board
               _buildKanbanBoard(tasks, projectAsync.valueOrNull),
-
-              // Tab 2: Task List
               _buildTaskList(tasks, projectAsync.valueOrNull),
             ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          final project = projectAsync.valueOrNull;
-          if (project != null) {
-            CreateTaskDialog.show(
-              context,
-              projectId: project.id,
-              workspaceId: project.workspaceId,
-            );
-          }
-        },
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'New Task',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: AppColors.buttonShadow,
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            final project = projectAsync.valueOrNull;
+            if (project != null) {
+              CreateTaskDialog.show(
+                context,
+                projectId: project.id,
+                workspaceId: project.workspaceId,
+              );
+            }
+          },
+          backgroundColor: AppColors.primary,
+          elevation: 0,
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text(
+            'New Task',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -292,43 +382,57 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
     const statuses = TaskStatus.values;
 
     return RefreshIndicator(
+      color: AppColors.primary,
       onRefresh: () async {
         ref.invalidate(projectTasksProvider(widget.projectId));
         ref.invalidate(projectDetailProvider(widget.projectId));
       },
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
         children: statuses.map((status) {
           final columnTasks =
               allTasks.where((t) => t.status == status).toList();
 
           return Container(
-            width: 290,
+            width: 300,
             margin: const EdgeInsets.symmetric(horizontal: 6),
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              color: AppColors.surface.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Column Header
-                Padding(
-                  padding: const EdgeInsets.all(14.0),
+                Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: status.color.withValues(alpha: 0.04),
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20)),
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          Icon(status.icon, size: 18, color: status.color),
-                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: status.color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(status.icon,
+                                size: 16, color: status.color),
+                          ),
+                          const SizedBox(width: 10),
                           Text(
                             status.displayName,
                             style: const TextStyle(
                               fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
                           ),
@@ -336,19 +440,20 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
+                          horizontal: 10,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: AppColors.border.withValues(alpha: 0.5)),
                         ),
                         child: Text(
                           '${columnTasks.length}',
                           style: const TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             color: AppColors.textPrimary,
                           ),
                         ),
@@ -356,29 +461,30 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.border),
 
                 // Tasks in this column
                 Expanded(
                   child: columnTasks.isEmpty
                       ? Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(20.0),
+                            padding: const EdgeInsets.all(24.0),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
                                   Icons.inbox_outlined,
-                                  size: 32,
-                                  color: AppColors.textSecondary
-                                      .withValues(alpha: 0.5),
+                                  size: 28,
+                                  color: AppColors.textMuted
+                                      .withValues(alpha: 0.3),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'No ${status.displayName} tasks',
-                                  style: const TextStyle(
+                                  'Empty',
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: AppColors.textSecondary,
+                                    color: AppColors.textMuted
+                                        .withValues(alpha: 0.5),
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
@@ -386,7 +492,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
                           itemCount: columnTasks.length,
                           itemBuilder: (context, index) {
                             final task = columnTasks[index];
@@ -404,25 +511,40 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
 
                 // Column quick add button
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      if (project != null) {
-                        CreateTaskDialog.show(
-                          context,
-                          projectId: project.id,
-                          workspaceId: project.workspaceId,
-                          initialStatus: status,
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Add Task'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.border),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  padding: const EdgeInsets.all(10.0),
+                  child: Material(
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        if (project != null) {
+                          CreateTaskDialog.show(
+                            context,
+                            projectId: project.id,
+                            workspaceId: project.workspaceId,
+                            initialStatus: status,
+                          );
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_rounded,
+                                size: 16, color: AppColors.textSecondary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Add Task',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -454,7 +576,13 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
         // Search & Filter header
         Container(
           padding: const EdgeInsets.all(16),
-          color: AppColors.surface,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(
+              bottom: BorderSide(
+                  color: AppColors.border.withValues(alpha: 0.3)),
+            ),
+          ),
           child: Column(
             children: [
               // Search field
@@ -462,10 +590,10 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Search tasks...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
+                          icon: const Icon(Icons.clear_rounded, size: 18),
                           onPressed: () {
                             _searchController.clear();
                             setState(() {});
@@ -475,15 +603,15 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                   filled: true,
                   fillColor: AppColors.surfaceVariant,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
                   ),
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
                 onChanged: (_) => setState(() {}),
               ),
@@ -494,43 +622,28 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    FilterChip(
-                      label: const Text('All'),
-                      selected: _selectedStatusFilter == null,
-                      onSelected: (selected) {
-                        setState(() => _selectedStatusFilter = null);
-                      },
-                      selectedColor: AppColors.primary,
-                      labelStyle: TextStyle(
-                        color: _selectedStatusFilter == null
-                            ? Colors.white
-                            : AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
+                    _buildFilterChip(
+                      label: 'All',
+                      isSelected: _selectedStatusFilter == null,
+                      onTap: () =>
+                          setState(() => _selectedStatusFilter = null),
                     ),
                     const SizedBox(width: 8),
                     ...TaskStatus.values.map((status) {
                       final isSelected = _selectedStatusFilter == status;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8.0),
-                        child: FilterChip(
-                          label: Text(status.displayName),
-                          selected: isSelected,
-                          onSelected: (selected) {
+                        child: _buildFilterChip(
+                          label: status.displayName,
+                          isSelected: isSelected,
+                          color: status.color,
+                          icon: status.icon,
+                          onTap: () {
                             setState(() {
                               _selectedStatusFilter =
-                                  selected ? status : null;
+                                  isSelected ? null : status;
                             });
                           },
-                          selectedColor: AppColors.primary,
-                          labelStyle: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
                         ),
                       );
                     }),
@@ -540,20 +653,32 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
             ],
           ),
         ),
-        const Divider(height: 1, color: AppColors.border),
 
         // List
         Expanded(
           child: RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async {
               ref.invalidate(projectTasksProvider(widget.projectId));
               ref.invalidate(projectDetailProvider(widget.projectId));
             },
             child: filtered.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No tasks found matching filter',
-                      style: TextStyle(color: AppColors.textSecondary),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off_rounded,
+                            size: 40,
+                            color: AppColors.textMuted.withValues(alpha: 0.4)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No tasks found',
+                          style: TextStyle(
+                            color: AppColors.textMuted.withValues(alpha: 0.6),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
@@ -574,6 +699,54 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color? color,
+    IconData? icon,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (color ?? AppColors.primary)
+              : AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? (color ?? AppColors.primary).withValues(alpha: 0.3)
+                : AppColors.border.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

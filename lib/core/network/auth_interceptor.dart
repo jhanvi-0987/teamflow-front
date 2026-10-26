@@ -6,9 +6,10 @@ import 'api_endpoints.dart';
 class AuthInterceptor extends QueuedInterceptor {
   final TokenStorage _tokenStorage;
   final Dio _dio;
+  final void Function(String newToken)? onTokenRefreshed;
   Completer<String?>? _refreshCompleter;
 
-  AuthInterceptor(this._tokenStorage, this._dio);
+  AuthInterceptor(this._tokenStorage, this._dio, {this.onTokenRefreshed});
 
   @override
   Future<void> onRequest(
@@ -81,6 +82,7 @@ class AuthInterceptor extends QueuedInterceptor {
           accessToken: newAccessToken,
           refreshToken: newRefreshToken,
         );
+        onTokenRefreshed?.call(newAccessToken);
         _refreshCompleter!.complete(newAccessToken);
         return newAccessToken;
       }

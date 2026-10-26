@@ -21,12 +21,14 @@ class SocketService {
   final _taskStatusChangedController = StreamController<Map<String, dynamic>>.broadcast();
   final _taskDeletedController = StreamController<Map<String, dynamic>>.broadcast();
   final _commentCreatedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _securityRevokedController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get onTaskCreated => _taskCreatedController.stream;
   Stream<Map<String, dynamic>> get onTaskUpdated => _taskUpdatedController.stream;
   Stream<Map<String, dynamic>> get onTaskStatusChanged => _taskStatusChangedController.stream;
   Stream<Map<String, dynamic>> get onTaskDeleted => _taskDeletedController.stream;
   Stream<Map<String, dynamic>> get onCommentCreated => _commentCreatedController.stream;
+  Stream<Map<String, dynamic>> get onSecurityRevoked => _securityRevokedController.stream;
 
   SocketService({
     required TokenStorage tokenStorage,
@@ -113,6 +115,17 @@ class SocketService {
       }
     });
 
+    _socket!.on('security:revoke', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Security revocation event received: $data');
+        _securityRevokedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('auth:expired', (data) {
+      debugPrint('[SocketService] Auth token expired on server: $data');
+    });
+
     _socket!.connect();
   }
 
@@ -127,6 +140,13 @@ class SocketService {
     if (_socket != null) {
       _socket!.emit('leave:project', {'projectId': projectId});
       debugPrint('[SocketService] Left project room: $projectId');
+    }
+  }
+
+  void renewAuth(String newAccessToken) {
+    if (_socket != null && _socket!.connected) {
+      _socket!.emit('auth:renew', {'accessToken': newAccessToken});
+      debugPrint('[SocketService] Emitted auth:renew with refreshed token');
     }
   }
 
@@ -146,6 +166,7 @@ class SocketService {
     _taskStatusChangedController.close();
     _taskDeletedController.close();
     _commentCreatedController.close();
+    _securityRevokedController.close();
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/auth/token_storage.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/realtime/socket_service.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -13,7 +14,12 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) {
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final tokenStorage = ref.watch(tokenStorageProvider);
-  return ApiClient(tokenStorage: tokenStorage);
+  return ApiClient(
+    tokenStorage: tokenStorage,
+    onTokenRefreshed: (newToken) {
+      ref.read(socketServiceProvider).renewAuth(newToken);
+    },
+  );
 });
 
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {

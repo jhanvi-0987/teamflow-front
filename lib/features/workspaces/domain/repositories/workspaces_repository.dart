@@ -12,7 +12,7 @@ abstract class WorkspacesRepository {
   Future<void> leaveWorkspace(String workspaceId);
 
   // Members
-  Future<List<WorkspaceMember>> getMembers(String workspaceId);
+  Future<List<WorkspaceMember>> getMembers(String workspaceId, {String? query});
   Future<WorkspaceMember> updateMemberRole(
     String workspaceId,
     String userId,

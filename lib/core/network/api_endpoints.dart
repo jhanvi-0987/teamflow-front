@@ -21,7 +21,10 @@ class ApiEndpoints {
   // Workspace endpoints
   static const String workspaces = '/workspaces';
   static String workspace(String id) => '/workspaces/$id';
-  static String workspaceMembers(String id) => '/workspaces/$id/members';
+  static String workspaceMembers(String id, {String? query}) =>
+      query != null && query.trim().isNotEmpty
+          ? '/workspaces/$id/members?query=${Uri.encodeComponent(query.trim())}'
+          : '/workspaces/$id/members';
   static String workspaceMember(String workspaceId, String userId) =>
       '/workspaces/$workspaceId/members/$userId';
   static String workspaceInvitations(String id) => '/workspaces/$id/invitations';
@@ -35,6 +38,7 @@ class ApiEndpoints {
   // Global Invitation endpoints
   static const String invitationsAccept = '/invitations/accept';
   static const String invitationsDecline = '/invitations/decline';
+  static const String invitationsPreviewPost = '/invitations/preview';
   static String invitationsPreview(String token) =>
       '/invitations/preview?token=$token';
 

@@ -90,7 +90,15 @@ class MockWorkspacesRepository implements WorkspacesRepository {
   }
 
   @override
-  Future<List<WorkspaceMember>> getMembers(String workspaceId) async {
+  Future<List<WorkspaceMember>> getMembers(String workspaceId, {String? query}) async {
+    if (query != null && query.trim().isNotEmpty) {
+      final clean = query.trim().toLowerCase();
+      return _members
+          .where((m) =>
+              m.name.toLowerCase().contains(clean) ||
+              m.email.toLowerCase().contains(clean))
+          .toList();
+    }
     return List.from(_members);
   }
 

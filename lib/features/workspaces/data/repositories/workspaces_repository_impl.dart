@@ -45,8 +45,8 @@ class WorkspacesRepositoryImpl implements WorkspacesRepository {
   }
 
   @override
-  Future<List<WorkspaceMember>> getMembers(String workspaceId) {
-    return remoteDataSource.getMembers(workspaceId);
+  Future<List<WorkspaceMember>> getMembers(String workspaceId, {String? query}) {
+    return remoteDataSource.getMembers(workspaceId, query: query);
   }
 
   @override

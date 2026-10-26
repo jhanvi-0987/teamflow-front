@@ -85,7 +85,13 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Status updated to ${newStatus.displayName}'),
+            content: Row(
+              children: [
+                Icon(newStatus.icon, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text('Status updated to ${newStatus.displayName}'),
+              ],
+            ),
             backgroundColor: AppColors.primary,
           ),
         );
@@ -97,7 +103,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           SnackBar(
             content: Text(
               e.toString().contains('409')
-                  ? 'Version Conflict: This task was modified by someone else. Reloading latest version...'
+                  ? 'Version Conflict: This task was modified by someone else. Reloading...'
                   : 'Failed to update status: $e',
             ),
             backgroundColor: AppColors.error,
@@ -239,7 +245,8 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Task'),
+        title: const Text('Delete Task',
+            style: TextStyle(fontWeight: FontWeight.w700)),
         content: Text('Are you sure you want to delete "${task.title}"?'),
         actions: [
           TextButton(
@@ -247,7 +254,10 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              minimumSize: const Size(0, 42),
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
@@ -282,227 +292,285 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     final commentsAsync = ref.watch(taskCommentsProvider(widget.taskId));
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Task Details'),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border.withValues(alpha: 0.4)),
+            ),
+            child: const Icon(Icons.arrow_back_rounded, size: 18),
+          ),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          'Task Details',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
+          ),
+        ),
         actions: [
           if (taskAsync.valueOrNull != null)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: AppColors.error),
-              tooltip: 'Delete Task',
-              onPressed: () => _deleteTask(taskAsync.valueOrNull!),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: AppColors.error, size: 18),
+                ),
+                tooltip: 'Delete Task',
+                onPressed: () => _deleteTask(taskAsync.valueOrNull!),
+              ),
             ),
         ],
       ),
       body: taskAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
         error: (err, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-              const SizedBox(height: 16),
-              Text('Error loading task: $err'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.invalidate(taskDetailProvider(widget.taskId)),
-                child: const Text('Retry'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.error_outline_rounded,
+                      size: 40, color: AppColors.error),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Error loading task',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('$err',
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withValues(alpha: 0.7),
+                      fontSize: 13,
+                    )),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      ref.invalidate(taskDetailProvider(widget.taskId)),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
         data: (task) {
           return Column(
             children: [
               if (_isUpdatingTask)
-                const LinearProgressIndicator(color: AppColors.primary),
+                LinearProgressIndicator(
+                  color: AppColors.primary,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  minHeight: 3,
+                ),
 
               // Main task scrollable content
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
-                    // Concurrency version badge & Due date
+                    // Title with version badge
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            task.title,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.6,
+                              color: AppColors.textPrimary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Meta row: version + due date
+                    Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                              horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.lock_clock_outlined,
-                                  size: 13, color: AppColors.textSecondary),
+                                  size: 13, color: AppColors.textMuted),
                               const SizedBox(width: 4),
                               Text(
-                                'Lock Version v${task.version}',
+                                'v${task.version}',
                                 style: const TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textMuted,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        if (task.dueAt != null)
-                          Row(
-                            children: [
-                              const Icon(Icons.calendar_today,
-                                  size: 14, color: AppColors.textSecondary),
-                              const SizedBox(width: 4),
-                              Text(
-                                _formatDate(task.dueAt!),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
+                        if (task.dueAt != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.calendar_today_rounded,
+                                    size: 13, color: AppColors.warning),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatDate(task.dueAt!),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.warning,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 16),
-
-                    // Title
-                    Text(
-                      task.title,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.5,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 22),
 
                     // Status and Priority Controls
                     Row(
                       children: [
-                        // Status Dropdown
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'STATUS',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textSecondary,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surface,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.border),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<TaskStatus>(
-                                    isExpanded: true,
-                                    value: task.status,
-                                    items: TaskStatus.values.map((s) {
-                                      return DropdownMenuItem(
-                                        value: s,
-                                        child: Row(
-                                          children: [
-                                            Icon(s.icon,
-                                                size: 16, color: s.color),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              s.displayName,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: s.color,
-                                              ),
-                                            ),
-                                          ],
+                          child: _buildDropdownSection(
+                            label: 'STATUS',
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<TaskStatus>(
+                                isExpanded: true,
+                                value: task.status,
+                                items: TaskStatus.values.map((s) {
+                                  return DropdownMenuItem(
+                                    value: s,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: s.color
+                                                .withValues(alpha: 0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Icon(s.icon,
+                                              size: 14, color: s.color),
                                         ),
-                                      );
-                                    }).toList(),
-                                    onChanged: (newStatus) {
-                                      if (newStatus != null &&
-                                          newStatus != task.status) {
-                                        _updateStatus(task, newStatus);
-                                      }
-                                    },
-                                  ),
-                                ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            s.displayName,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: s.color,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (newStatus) {
+                                  if (newStatus != null &&
+                                      newStatus != task.status) {
+                                    _updateStatus(task, newStatus);
+                                  }
+                                },
                               ),
-                            ],
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
-
-                        // Priority Dropdown
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'PRIORITY',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textSecondary,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surface,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.border),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<TaskPriority>(
-                                    isExpanded: true,
-                                    value: task.priority,
-                                    items: TaskPriority.values.map((p) {
-                                      return DropdownMenuItem(
-                                        value: p,
-                                        child: Row(
-                                          children: [
-                                            Icon(p.icon,
-                                                size: 16, color: p.color),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              p.displayName,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: p.color,
-                                              ),
-                                            ),
-                                          ],
+                          child: _buildDropdownSection(
+                            label: 'PRIORITY',
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<TaskPriority>(
+                                isExpanded: true,
+                                value: task.priority,
+                                items: TaskPriority.values.map((p) {
+                                  return DropdownMenuItem(
+                                    value: p,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: p.color
+                                                .withValues(alpha: 0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Icon(p.icon,
+                                              size: 14, color: p.color),
                                         ),
-                                      );
-                                    }).toList(),
-                                    onChanged: (newPriority) {
-                                      if (newPriority != null &&
-                                          newPriority != task.priority) {
-                                        _updatePriority(task, newPriority);
-                                      }
-                                    },
-                                  ),
-                                ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            p.displayName,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: p.color,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (newPriority) {
+                                  if (newPriority != null &&
+                                      newPriority != task.priority) {
+                                    _updatePriority(task, newPriority);
+                                  }
+                                },
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ],
@@ -510,147 +578,69 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     const SizedBox(height: 20),
 
                     // Assignee & Reporter
-                    Card(
-                      elevation: 0,
-                      color: AppColors.surface,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: AppColors.border),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            InkWell(
-                              borderRadius: BorderRadius.circular(8),
-                              onTap: () => _updateAssignee(task),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Text(
-                                          'ASSIGNEE',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.textSecondary,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Icon(
-                                          Icons.edit_outlined,
-                                          size: 11,
-                                          color: AppColors.primary.withValues(alpha: 0.7),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 12,
-                                          backgroundColor: AppColors.primary,
-                                          child: Text(
-                                            task.assignee?.name.isNotEmpty == true
-                                                ? task.assignee!.name
-                                                    .substring(0, 1)
-                                                    .toUpperCase()
-                                                : '?',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          task.assignee?.name ?? 'Unassigned',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Container(
-                                width: 1,
-                                height: 32,
-                                color: AppColors.border),
-
-                            Column(
-                              children: [
-                                const Text(
-                                  'REPORTER',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: AppColors.accent,
-                                      child: Text(
-                                        task.reporter?.name.isNotEmpty == true
-                                            ? task.reporter!.name
-                                                .substring(0, 1)
-                                                .toUpperCase()
-                                            : 'R',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      task.reporter?.name ?? 'Unknown',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Description Section
-                    const Text(
-                      'Description',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(16.0),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                            color: AppColors.border.withValues(alpha: 0.4)),
+                        boxShadow: AppColors.cardShadow,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => _updateAssignee(task),
+                              child: _buildPersonSection(
+                                label: 'ASSIGNEE',
+                                name: task.assignee?.name ?? 'Unassigned',
+                                initial: task.assignee?.name.isNotEmpty == true
+                                    ? task.assignee!.name
+                                        .substring(0, 1)
+                                        .toUpperCase()
+                                    : '?',
+                                isEditable: true,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 50,
+                            color: AppColors.border.withValues(alpha: 0.4),
+                          ),
+                          Expanded(
+                            child: _buildPersonSection(
+                              label: 'REPORTER',
+                              name: task.reporter?.name ?? 'Unknown',
+                              initial: task.reporter?.name.isNotEmpty == true
+                                  ? task.reporter!.name
+                                      .substring(0, 1)
+                                      .toUpperCase()
+                                  : 'R',
+                              isEditable: false,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+
+                    // Description Section
+                    _buildSectionHeader(
+                      icon: Icons.description_outlined,
+                      title: 'Description',
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: AppColors.border.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         task.description?.isNotEmpty == true
@@ -660,50 +650,79 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                           fontSize: 14,
                           color: task.description?.isNotEmpty == true
                               ? AppColors.textPrimary
-                              : AppColors.textSecondary,
-                          height: 1.4,
+                              : AppColors.textMuted.withValues(alpha: 0.6),
+                          height: 1.5,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 26),
 
                     // Comments Header
-                    Row(
-                      children: [
-                        const Icon(Icons.comment_outlined,
-                            size: 18, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Comments (${task.commentCount})',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
+                    _buildSectionHeader(
+                      icon: Icons.chat_outlined,
+                      title: 'Comments (${task.commentCount})',
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
 
                     // Comments List
                     commentsAsync.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (err, _) => Text(
-                        'Failed to load comments: $err',
-                        style: const TextStyle(color: AppColors.error),
+                      loading: () => const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                              color: AppColors.primary),
+                        ),
+                      ),
+                      error: (err, _) => Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorLight,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Failed to load comments: $err',
+                          style: const TextStyle(
+                              color: AppColors.error, fontSize: 13),
+                        ),
                       ),
                       data: (comments) {
                         if (comments.isEmpty) {
                           return Container(
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(28),
                             alignment: Alignment.center,
-                            child: const Text(
-                              'No comments yet. Start the conversation!',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 13,
-                              ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color:
+                                      AppColors.border.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(Icons.chat_bubble_outline_rounded,
+                                    size: 32,
+                                    color:
+                                        AppColors.textMuted.withValues(alpha: 0.3)),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'No comments yet',
+                                  style: TextStyle(
+                                    color: AppColors.textMuted
+                                        .withValues(alpha: 0.6),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Start the conversation below',
+                                  style: TextStyle(
+                                    color: AppColors.textMuted
+                                        .withValues(alpha: 0.4),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         }
@@ -726,11 +745,21 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
               // Bottom Comment Input Bar
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
-                decoration: const BoxDecoration(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
                   color: AppColors.surface,
-                  border: Border(top: BorderSide(color: AppColors.border)),
+                  border: Border(
+                    top: BorderSide(
+                        color: AppColors.border.withValues(alpha: 0.3)),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
                 ),
                 child: SafeArea(
                   child: Row(
@@ -741,40 +770,61 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
                             hintText: 'Write a comment...',
+                            hintStyle: TextStyle(
+                              color: AppColors.textMuted.withValues(alpha: 0.5),
+                              fontSize: 14,
+                            ),
                             filled: true,
                             fillColor: AppColors.surfaceVariant,
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
+                                horizontal: 18, vertical: 12),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              borderSide:
-                                  const BorderSide(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              borderSide:
-                                  const BorderSide(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                width: 1.5,
+                              ),
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
-                      IconButton.filled(
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  AppColors.primary.withValues(alpha: 0.25),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                        onPressed: _isSendingComment ? null : _sendComment,
-                        icon: _isSendingComment
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.send,
-                                size: 18, color: Colors.white),
+                        child: IconButton(
+                          onPressed:
+                              _isSendingComment ? null : _sendComment,
+                          icon: _isSendingComment
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send_rounded,
+                                  size: 18, color: Colors.white),
+                        ),
                       ),
                     ],
                   ),
@@ -787,13 +837,144 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     );
   }
 
+  Widget _buildDropdownSection({
+    required String label,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textMuted.withValues(alpha: 0.6),
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.4)),
+          ),
+          child: child,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPersonSection({
+    required String label,
+    required String name,
+    required String initial,
+    required bool isEditable,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Column(
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMuted.withValues(alpha: 0.6),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              if (isEditable) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.edit_outlined,
+                  size: 11,
+                  color: AppColors.primary.withValues(alpha: 0.6),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: AppColors.primary),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCommentItem(CommentModel comment) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -803,46 +984,53 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 11,
-                    backgroundColor: AppColors.primary,
-                    child: Text(
-                      comment.author.name.isNotEmpty
-                          ? comment.author.name.substring(0, 1).toUpperCase()
-                          : 'U',
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        comment.author.name.isNotEmpty
+                            ? comment.author.name.substring(0, 1).toUpperCase()
+                            : 'U',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
                     comment.author.name,
                     style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
               Text(
                 _formatDateTime(comment.createdAt),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textSecondary,
+                  color: AppColors.textMuted.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           Text(
             comment.body,
             style: const TextStyle(
               fontSize: 13,
               color: AppColors.textPrimary,
-              height: 1.3,
+              height: 1.5,
             ),
           ),
         ],
