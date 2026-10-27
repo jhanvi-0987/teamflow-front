@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 class MessageNotification extends Equatable {
+  final String? messageId;
   final String channelId;
   final String channelName;
   final bool isDM;
@@ -14,6 +15,7 @@ class MessageNotification extends Equatable {
   final DateTime createdAt;
 
   const MessageNotification({
+    this.messageId,
     required this.channelId,
     required this.channelName,
     required this.isDM,
@@ -28,11 +30,13 @@ class MessageNotification extends Equatable {
   });
 
   factory MessageNotification.fromJson(Map<String, dynamic> json) {
+    final isDMVal = json['isDM'] == true || json['isDM'] == 'true';
     return MessageNotification(
+      messageId: json['messageId'] as String?,
       channelId: json['channelId'] as String? ?? '',
       channelName: json['channelName'] as String? ??
-          (json['isDM'] == true ? 'Direct Message' : 'Channel'),
-      isDM: json['isDM'] as bool? ?? false,
+          (isDMVal ? 'Direct Message' : 'Channel'),
+      isDM: isDMVal,
       senderId: json['senderId'] as String? ?? '',
       senderName: json['senderName'] as String? ?? json['senderEmail'] as String? ?? 'Teammate',
       senderEmail: json['senderEmail'] as String? ?? '',
@@ -48,6 +52,7 @@ class MessageNotification extends Equatable {
 
   @override
   List<Object?> get props => [
+        messageId,
         channelId,
         channelName,
         isDM,

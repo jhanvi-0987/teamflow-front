@@ -138,5 +138,25 @@ void main() {
       expect(state.totalUnreadCount, 0);
       expect(state.countForChannel('chan-active'), 0);
     });
+
+    test('updates channel last message preview and sender immediately when notification is received', () {
+      final notifier = container.read(unreadMessagesProvider.notifier);
+
+      notifier.handleNotificationForTest({
+        'channelId': 'chan-preview',
+        'channelName': 'general',
+        'isDM': false,
+        'senderId': 'user-5',
+        'senderName': 'Alice',
+        'senderEmail': 'alice@test.com',
+        'content': 'Check out the new design',
+        'workspaceId': 'ws-1',
+      });
+
+      final state = container.read(unreadMessagesProvider);
+      expect(state.lastMessageForChannel('chan-preview'), 'Check out the new design');
+      expect(state.lastSenderForChannel('chan-preview'), 'Alice');
+      expect(state.lastTimeForChannel('chan-preview'), isNotNull);
+    });
   });
 }

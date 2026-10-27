@@ -9,8 +9,6 @@ import '../../features/chat/presentation/providers/chat_notification_providers.d
 import '../../features/chat/presentation/screens/channel_chat_screen.dart';
 import '../network/api_client.dart';
 import '../../features/authentication/presentation/providers/auth_providers.dart';
-import 'in_app_notification_service.dart';
-import 'local_notification_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -116,6 +114,7 @@ class FcmService {
     if (data.isEmpty) return;
 
     final notif = MessageNotification(
+      messageId: data['messageId'] ?? message.messageId,
       channelId: data['channelId'] ?? '',
       channelName: data['channelName'] ?? 'General',
       isDM: data['isDM'] == 'true' || data['isDM'] == true,
@@ -129,14 +128,8 @@ class FcmService {
       createdAt: DateTime.now(),
     );
 
-    // Show in-app banner toast
-    InAppNotificationService.show(
-      notif,
-      onTap: (notification) => _openChat(notification),
-    );
-
-    // Post to status bar as well
-    LocalNotificationService.showNotification(notif).catchError((_) {});
+    // Update unread card counter, message preview, and display banner
+    _ref.read(unreadMessagesProvider.notifier).handleIncomingNotification(notif);
   }
 
   void _handleNotificationTap(Map<String, dynamic> data) {

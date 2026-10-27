@@ -882,11 +882,17 @@ class _ChannelsListScreenState extends ConsumerState<ChannelsListScreen> {
                       ...regularChannels.map((c) => _ChannelListItem(
                             channel: c,
                             unreadCount: unreadState.countForChannel(c.id),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ChannelChatScreen(channel: c),
-                              ),
-                            ),
+                            latestMessageOverride: unreadState.lastMessageForChannel(c.id),
+                            latestSenderOverride: unreadState.lastSenderForChannel(c.id),
+                            latestTimeOverride: unreadState.lastTimeForChannel(c.id),
+                            onTap: () {
+                              ref.read(unreadMessagesProvider.notifier).markChannelAsRead(c.id);
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ChannelChatScreen(channel: c),
+                                ),
+                              );
+                            },
                           )),
                       const SizedBox(height: 20),
                     ],
@@ -950,11 +956,17 @@ class _ChannelsListScreenState extends ConsumerState<ChannelsListScreen> {
                         ...directMessages.map((dm) => _ChannelListItem(
                               channel: dm,
                               unreadCount: unreadState.countForChannel(dm.id),
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ChannelChatScreen(channel: dm),
-                                ),
-                              ),
+                              latestMessageOverride: unreadState.lastMessageForChannel(dm.id),
+                              latestSenderOverride: unreadState.lastSenderForChannel(dm.id),
+                              latestTimeOverride: unreadState.lastTimeForChannel(dm.id),
+                              onTap: () {
+                                ref.read(unreadMessagesProvider.notifier).markChannelAsRead(dm.id);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ChannelChatScreen(channel: dm),
+                                  ),
+                                );
+                              },
                             )),
                     ],
                   ]),
@@ -1051,11 +1063,17 @@ class _FilterChip extends StatelessWidget {
 class _ChannelListItem extends StatelessWidget {
   final ChannelModel channel;
   final int unreadCount;
+  final String? latestMessageOverride;
+  final String? latestSenderOverride;
+  final DateTime? latestTimeOverride;
   final VoidCallback onTap;
 
   const _ChannelListItem({
     required this.channel,
     this.unreadCount = 0,
+    this.latestMessageOverride,
+    this.latestSenderOverride,
+    this.latestTimeOverride,
     required this.onTap,
   });
 
@@ -1076,6 +1094,9 @@ class _ChannelListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDM = channel.isDM;
+    final displayMessage = latestMessageOverride ?? channel.lastMessageText;
+    final displaySender = latestSenderOverride ?? channel.lastMessageSender;
+    final displayTime = latestTimeOverride ?? channel.lastMessageTime;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1183,9 +1204,9 @@ class _ChannelListItem extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (channel.lastMessageTime != null)
+                          if (displayTime != null)
                             Text(
-                              _formatTime(channel.lastMessageTime),
+                              _formatTime(displayTime),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
@@ -1196,14 +1217,14 @@ class _ChannelListItem extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        channel.lastMessageText?.isNotEmpty == true
-                            ? '${channel.lastMessageSender != null ? "${channel.lastMessageSender}: " : ""}${channel.lastMessageText}'
+                        displayMessage?.isNotEmpty == true
+                            ? '${displaySender != null ? "$displaySender: " : ""}$displayMessage'
                             : (channel.topic?.isNotEmpty == true
                                 ? channel.topic!
                                 : 'No messages yet. Tap to start chatting.'),
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: channel.lastMessageText != null
+                          color: displayMessage != null
                               ? AppColors.textPrimary.withValues(alpha: 0.85)
                               : AppColors.textSecondary.withValues(alpha: 0.65),
                         ),
