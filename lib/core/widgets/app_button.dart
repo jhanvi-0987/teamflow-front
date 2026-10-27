@@ -75,7 +75,7 @@ class _AppButtonState extends State<AppButton>
               ),
               minimumSize: widget.isCompact
                   ? const Size(0, 44)
-                  : const Size.fromHeight(54),
+                  : const Size(0, 54),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -108,7 +108,7 @@ class _AppButtonState extends State<AppButton>
                   widget.isDanger ? AppColors.error : AppColors.primary,
               minimumSize: widget.isCompact
                   ? const Size(0, 44)
-                  : const Size.fromHeight(54),
+                  : const Size(0, 54),
             ),
             child: _buildChild(context),
           ),
