@@ -6,6 +6,7 @@ import '../../../workspaces/presentation/providers/workspace_providers.dart';
 import '../../../workspaces/presentation/widgets/workspace_switcher_sheet.dart';
 import '../../domain/models/channel_model.dart';
 import '../providers/chat_providers.dart';
+import '../providers/chat_notification_providers.dart';
 import 'channel_chat_screen.dart';
 
 enum _ChatFilter { all, channels, directMessages }
@@ -505,6 +506,7 @@ class _ChannelsListScreenState extends ConsumerState<ChannelsListScreen> {
     }
 
     final channelsAsync = ref.watch(workspaceChannelsProvider(workspace.id));
+    final unreadState = ref.watch(unreadMessagesProvider);
     final userName = currentUser?.name.split(' ').first ?? 'Team Member';
 
     return Scaffold(
@@ -879,6 +881,7 @@ class _ChannelsListScreenState extends ConsumerState<ChannelsListScreen> {
 
                       ...regularChannels.map((c) => _ChannelListItem(
                             channel: c,
+                            unreadCount: unreadState.countForChannel(c.id),
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => ChannelChatScreen(channel: c),
@@ -946,6 +949,7 @@ class _ChannelsListScreenState extends ConsumerState<ChannelsListScreen> {
                       else
                         ...directMessages.map((dm) => _ChannelListItem(
                               channel: dm,
+                              unreadCount: unreadState.countForChannel(dm.id),
                               onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => ChannelChatScreen(channel: dm),
@@ -1046,10 +1050,12 @@ class _FilterChip extends StatelessWidget {
 
 class _ChannelListItem extends StatelessWidget {
   final ChannelModel channel;
+  final int unreadCount;
   final VoidCallback onTap;
 
   const _ChannelListItem({
     required this.channel,
+    this.unreadCount = 0,
     required this.onTap,
   });
 
@@ -1074,9 +1080,14 @@ class _ChannelListItem extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: unreadCount > 0 ? const Color(0xFFFCFAF2) : Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFEDE9E3)),
+        border: Border.all(
+          color: unreadCount > 0
+              ? AppColors.border.withValues(alpha: 0.8)
+              : const Color(0xFFEDE9E3),
+          width: unreadCount > 0 ? 1.5 : 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.025),
@@ -1203,6 +1214,33 @@ class _ChannelListItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
+                if (unreadCount > 0) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      unreadCount > 99 ? '99+' : '$unreadCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 const Icon(
                   Icons.arrow_forward_ios_rounded,
                   color: Color(0xFFD1D5DB),

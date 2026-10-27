@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "274523021062",
+    "project_id": "api-methods-7ba07",
+    "storage_bucket": "api-methods-7ba07.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274523021062:android:42abba9288259986a7c887",
+        "android_client_info": {
+          "package_name": "com.teamflow.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "274523021062-hjrtancnj529e4jm52jn2kmm5843r339.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFJc4jaxw9AU7o3CfJkWPPkYZHQdhUICs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "274523021062-hjrtancnj529e4jm52jn2kmm5843r339.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

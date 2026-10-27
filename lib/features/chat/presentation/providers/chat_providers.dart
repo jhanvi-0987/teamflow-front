@@ -50,6 +50,7 @@ class ChannelMessagesNotifier
     _socketService.joinChannel(_channelId);
 
     _messageSub = _socketService.onChatMessage.listen((data) {
+      if (!mounted) return;
       if (data['channelId'] == _channelId && data['message'] != null) {
         final newMsg =
             MessageModel.fromJson(Map<String, dynamic>.from(data['message']));
@@ -64,9 +65,11 @@ class ChannelMessagesNotifier
   Future<void> loadMessages() async {
     try {
       final messages = await _repository.getMessages(_channelId);
+      if (!mounted) return;
       state = AsyncValue.data(messages);
       _repository.markAsRead(_channelId).catchError((_) {});
     } catch (e, st) {
+      if (!mounted) return;
       state = AsyncValue.error(e, st);
     }
   }
@@ -79,6 +82,7 @@ class ChannelMessagesNotifier
         content: content,
         taskId: taskId,
       );
+      if (!mounted) return true;
       final current = state.value ?? [];
       if (!current.any((m) => m.id == created.id)) {
         state = AsyncValue.data([...current, created]);

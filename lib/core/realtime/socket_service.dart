@@ -62,7 +62,7 @@ class SocketService {
     _socket?.dispose();
 
     final options = socket_io.OptionBuilder()
-        .setTransports(['websocket'])
+        .setTransports(['websocket', 'polling'])
         .disableAutoConnect()
         .setAuth({'token': token})
         .enableReconnection()
@@ -70,24 +70,29 @@ class SocketService {
         .setReconnectionAttempts(10)
         .build();
 
+    debugPrint('[SocketService] Connecting to $_socketUrl with auth token...');
     _socket = socket_io.io(_socketUrl, options);
 
     _socket!.onConnect((_) {
-      debugPrint('[SocketService] Connected to $_socketUrl');
+      debugPrint('[SocketService] Connected to $_socketUrl (Socket ID: ${_socket?.id})');
       _isConnected = true;
       _connectionStateController.add(true);
     });
 
-    _socket!.onDisconnect((_) {
-      debugPrint('[SocketService] Disconnected');
+    _socket!.onDisconnect((reason) {
+      debugPrint('[SocketService] Disconnected from $_socketUrl, reason: $reason');
       _isConnected = false;
       _connectionStateController.add(false);
     });
 
     _socket!.onConnectError((err) {
-      debugPrint('[SocketService] Connection error: $err');
+      debugPrint('[SocketService] Connection error to $_socketUrl: $err');
       _isConnected = false;
       _connectionStateController.add(false);
+    });
+
+    _socket!.onError((err) {
+      debugPrint('[SocketService] Socket error: $err');
     });
 
     // Listen to real-time events from server

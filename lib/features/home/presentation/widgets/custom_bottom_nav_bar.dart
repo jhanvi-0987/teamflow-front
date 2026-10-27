@@ -6,12 +6,14 @@ class CustomBottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
   final VoidCallback onQuickActionTap;
+  final int chatBadgeCount;
 
   const CustomBottomNavBar({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
     required this.onQuickActionTap,
+    this.chatBadgeCount = 0,
   });
 
   @override
@@ -53,6 +55,7 @@ class CustomBottomNavBar extends StatelessWidget {
                   activeIcon: Icons.chat_bubble_rounded,
                   label: 'Chat',
                   isSelected: selectedIndex == 0,
+                  badgeCount: chatBadgeCount,
                   onTap: () => onItemSelected(0),
                 ),
 
@@ -122,6 +125,7 @@ class _NavBarItem extends StatelessWidget {
   final IconData activeIcon;
   final String label;
   final bool isSelected;
+  final int badgeCount;
   final VoidCallback onTap;
 
   const _NavBarItem({
@@ -129,6 +133,7 @@ class _NavBarItem extends StatelessWidget {
     required this.activeIcon,
     required this.label,
     required this.isSelected,
+    this.badgeCount = 0,
     required this.onTap,
   });
 
@@ -152,10 +157,42 @@ class _NavBarItem extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              size: 20,
-              color: isSelected ? Colors.white : AppColors.textSecondary,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  isSelected ? activeIcon : icon,
+                  size: 20,
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -5,
+                    right: -7,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.white : AppColors.primary,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : const Color(0xFFFCFAF2),
+                          width: 1.2,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: TextStyle(
+                          color: isSelected ? AppColors.primary : Colors.white,
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w800,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             if (isSelected) ...[
               const SizedBox(width: 5),

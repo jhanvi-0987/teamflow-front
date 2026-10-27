@@ -9,6 +9,7 @@ import '../../../tasks/presentation/screens/task_detail_screen.dart';
 import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_model.dart';
 import '../providers/chat_providers.dart';
+import '../providers/chat_notification_providers.dart';
 import '../../../projects/presentation/providers/project_providers.dart';
 
 class ChannelChatScreen extends ConsumerStatefulWidget {
@@ -32,10 +33,25 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
   String? _selectedTaskTitle;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(activeChatChannelProvider.notifier).state = widget.channel.id;
+        ref.read(unreadMessagesProvider.notifier).markChannelAsRead(widget.channel.id);
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _typingDebounce?.cancel();
     _textController.dispose();
     _scrollController.dispose();
+    final activeNotifier = ref.read(activeChatChannelProvider.notifier);
+    if (activeNotifier.state == widget.channel.id) {
+      activeNotifier.state = null;
+    }
     super.dispose();
   }
 

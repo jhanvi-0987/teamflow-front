@@ -10,10 +10,13 @@ import '../features/home/presentation/screens/home_screen.dart';
 import '../features/projects/presentation/screens/project_detail_screen.dart';
 import '../features/tasks/presentation/screens/task_detail_screen.dart';
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authControllerProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     routes: [
       GoRoute(

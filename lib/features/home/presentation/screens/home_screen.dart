@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/notifications/fcm_service.dart';
+import '../../../../core/realtime/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../chat/presentation/providers/chat_notification_providers.dart';
 import '../../../chat/presentation/screens/channels_list_screen.dart';
 import '../../../workspaces/presentation/providers/workspace_providers.dart';
 import '../widgets/custom_bottom_nav_bar.dart';
@@ -24,6 +27,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(socketServiceProvider).connect();
+      ref.read(fcmServiceProvider).initialize();
       ref.read(workspaceControllerProvider.notifier).loadWorkspaces();
     });
   }
@@ -44,6 +49,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final unreadState = ref.watch(unreadMessagesProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -66,6 +73,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             bottom: 0,
             child: CustomBottomNavBar(
               selectedIndex: _currentIndex,
+              chatBadgeCount: unreadState.totalUnreadCount,
               onItemSelected: (index) {
                 setState(() => _currentIndex = index);
               },
