@@ -4,6 +4,8 @@ abstract class TokenStorage {
   Future<void> saveTokens({required String accessToken, required String refreshToken});
   Future<String?> getAccessToken();
   Future<String?> getRefreshToken();
+  Future<void> saveUser(String userJson);
+  Future<String?> getUser();
   Future<void> clearTokens();
 }
 
@@ -12,6 +14,7 @@ class SecureTokenStorage implements TokenStorage {
 
   static const _accessKey = 'teamflow_access_token';
   static const _refreshKey = 'teamflow_refresh_token';
+  static const _userKey = 'teamflow_user_data';
 
   SecureTokenStorage([FlutterSecureStorage? storage])
       : _storage = storage ?? const FlutterSecureStorage();
@@ -33,15 +36,27 @@ class SecureTokenStorage implements TokenStorage {
   }
 
   @override
+  Future<void> saveUser(String userJson) async {
+    await _storage.write(key: _userKey, value: userJson);
+  }
+
+  @override
+  Future<String?> getUser() async {
+    return _storage.read(key: _userKey);
+  }
+
+  @override
   Future<void> clearTokens() async {
     await _storage.delete(key: _accessKey);
     await _storage.delete(key: _refreshKey);
+    await _storage.delete(key: _userKey);
   }
 }
 
 class InMemoryTokenStorage implements TokenStorage {
   String? _accessToken;
   String? _refreshToken;
+  String? _userJson;
 
   @override
   Future<void> saveTokens({required String accessToken, required String refreshToken}) async {
@@ -56,8 +71,17 @@ class InMemoryTokenStorage implements TokenStorage {
   Future<String?> getRefreshToken() async => _refreshToken;
 
   @override
+  Future<void> saveUser(String userJson) async {
+    _userJson = userJson;
+  }
+
+  @override
+  Future<String?> getUser() async => _userJson;
+
+  @override
   Future<void> clearTokens() async {
     _accessToken = null;
     _refreshToken = null;
+    _userJson = null;
   }
 }

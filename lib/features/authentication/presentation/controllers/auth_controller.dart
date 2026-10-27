@@ -9,7 +9,6 @@ class AuthController extends StateNotifier<AuthState> {
   AuthController(this._repository) : super(const AuthState.initial());
 
   Future<void> checkAuthStatus() async {
-    state = const AuthState.loading();
     try {
       final user = await _repository.getCurrentUser();
       if (user != null) {
