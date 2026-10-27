@@ -37,6 +37,9 @@ void main() {
       expect(socketService.onTaskDeleted, isNotNull);
       expect(socketService.onCommentCreated, isNotNull);
       expect(socketService.onSecurityRevoked, isNotNull);
+      expect(socketService.onChatMessage, isNotNull);
+      expect(socketService.onUserTyping, isNotNull);
+      expect(socketService.onMessageNotification, isNotNull);
     });
   });
 }
