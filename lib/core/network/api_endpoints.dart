@@ -5,6 +5,12 @@ class ApiEndpoints {
     defaultValue: 'http://localhost:3000/api/v1',
   );
 
+  // Configurable WebSocket URL (defaults to base domain if empty)
+  static const String socketUrl = String.fromEnvironment(
+    'SOCKET_URL',
+    defaultValue: '',
+  );
+
   // Auth endpoints
   static const String register = '/auth/register';
   static const String login = '/auth/login';
@@ -57,6 +63,18 @@ class ApiEndpoints {
   // Comment endpoints
   static String taskComments(String taskId) => '/tasks/$taskId/comments';
   static String comment(String id) => '/comments/$id';
+
+  // Chat endpoints
+  static String workspaceChannels(String workspaceId) =>
+      '/workspaces/$workspaceId/channels';
+  static String workspaceDirectMessages(String workspaceId) =>
+      '/workspaces/$workspaceId/channels/dm';
+  static String channelMessages(String channelId, {int limit = 50}) =>
+      '/channels/$channelId/messages?limit=$limit';
+  static String channelSendMessage(String channelId) =>
+      '/channels/$channelId/messages';
+  static String channelRead(String channelId) =>
+      '/channels/$channelId/read';
 
   // Health
   static const String healthLive = '/health/live';
