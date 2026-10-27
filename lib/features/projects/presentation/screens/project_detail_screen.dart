@@ -29,6 +29,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
   final TextEditingController _searchController = TextEditingController();
   TaskStatus? _selectedStatusFilter;
   List<StreamSubscription> _socketSubscriptions = [];
+  SocketService? _socketService;
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final socketService = ref.read(socketServiceProvider);
+      _socketService = socketService;
       socketService.connect();
       socketService.joinProject(widget.projectId);
 
@@ -77,7 +79,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
       sub.cancel();
     }
     _socketSubscriptions.clear();
-    ref.read(socketServiceProvider).leaveProject(widget.projectId);
+    _socketService?.leaveProject(widget.projectId);
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();

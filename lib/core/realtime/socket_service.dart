@@ -22,6 +22,8 @@ class SocketService {
   final _taskDeletedController = StreamController<Map<String, dynamic>>.broadcast();
   final _commentCreatedController = StreamController<Map<String, dynamic>>.broadcast();
   final _securityRevokedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _chatMessageController = StreamController<Map<String, dynamic>>.broadcast();
+  final _userTypingController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get onTaskCreated => _taskCreatedController.stream;
   Stream<Map<String, dynamic>> get onTaskUpdated => _taskUpdatedController.stream;
@@ -29,6 +31,8 @@ class SocketService {
   Stream<Map<String, dynamic>> get onTaskDeleted => _taskDeletedController.stream;
   Stream<Map<String, dynamic>> get onCommentCreated => _commentCreatedController.stream;
   Stream<Map<String, dynamic>> get onSecurityRevoked => _securityRevokedController.stream;
+  Stream<Map<String, dynamic>> get onChatMessage => _chatMessageController.stream;
+  Stream<Map<String, dynamic>> get onUserTyping => _userTypingController.stream;
 
   SocketService({
     required TokenStorage tokenStorage,
@@ -122,6 +126,19 @@ class SocketService {
       }
     });
 
+    _socket!.on('chat:message_received', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time chat message received: $data');
+        _chatMessageController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('chat:user_typing', (data) {
+      if (data is Map) {
+        _userTypingController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
     _socket!.on('auth:expired', (data) {
       debugPrint('[SocketService] Auth token expired on server: $data');
     });
@@ -140,6 +157,26 @@ class SocketService {
     if (_socket != null) {
       _socket!.emit('leave:project', {'projectId': projectId});
       debugPrint('[SocketService] Left project room: $projectId');
+    }
+  }
+
+  void joinChannel(String channelId) {
+    if (_socket != null) {
+      _socket!.emit('join:channel', {'channelId': channelId});
+      debugPrint('[SocketService] Joined channel room: $channelId');
+    }
+  }
+
+  void leaveChannel(String channelId) {
+    if (_socket != null) {
+      _socket!.emit('leave:channel', {'channelId': channelId});
+      debugPrint('[SocketService] Left channel room: $channelId');
+    }
+  }
+
+  void sendTyping(String channelId, bool isTyping) {
+    if (_socket != null && _socket!.connected) {
+      _socket!.emit('chat:typing', {'channelId': channelId, 'isTyping': isTyping});
     }
   }
 
@@ -167,12 +204,18 @@ class SocketService {
     _taskDeletedController.close();
     _commentCreatedController.close();
     _securityRevokedController.close();
+    _chatMessageController.close();
+    _userTypingController.close();
   }
 }
 
 final socketServiceProvider = Provider<SocketService>((ref) {
   final tokenStorage = ref.watch(tokenStorageProvider);
-  final service = SocketService(tokenStorage: tokenStorage);
+  final explicitUrl = ApiEndpoints.socketUrl.trim();
+  final service = SocketService(
+    tokenStorage: tokenStorage,
+    socketUrl: explicitUrl.isNotEmpty ? explicitUrl : null,
+  );
 
   ref.onDispose(() {
     service.dispose();
