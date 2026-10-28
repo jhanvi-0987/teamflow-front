@@ -107,14 +107,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           child: Container(
                             width: 72,
                             height: 72,
-                            alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              gradient: AppColors.primaryGradient,
                               borderRadius: BorderRadius.circular(22),
                               boxShadow: AppColors.buttonShadow,
                             ),
-                            child: const Icon(Icons.hub_outlined,
-                                color: AppColors.textOnPrimary, size: 36),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(22),
+                              child: Image.asset(
+                                'assets/images/teamflow_icon_tile.png',
+                                width: 72,
+                                height: 72,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 28),
