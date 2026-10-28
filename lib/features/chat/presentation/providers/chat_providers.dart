@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/realtime/socket_service.dart';
@@ -60,9 +61,11 @@ class ChannelMessagesNotifier
       if (data['channelId'] == _channelId && data['message'] != null) {
         final newMsg =
             MessageModel.fromJson(Map<String, dynamic>.from(data['message']));
-        final current = state.value ?? [];
-        if (!current.any((m) => m.id == newMsg.id)) {
-          state = AsyncValue.data([...current, newMsg]);
+        if (state.value != null) {
+          final current = state.value!;
+          if (!current.any((m) => m.id == newMsg.id)) {
+            state = AsyncValue.data([...current, newMsg]);
+          }
         }
         final activeChannelId = _ref.read(activeChatChannelProvider);
         final currentUserId = _ref.read(authControllerProvider).user?.id;
@@ -76,12 +79,13 @@ class ChannelMessagesNotifier
 
     _deliveredSub = _socketService.onMessagesDelivered.listen((data) {
       if (!mounted) return;
+      if (state.value == null) return;
       if (data['channelId'] == _channelId) {
         final rawList = data['messageIds'] as List?;
         final idsSet = rawList != null && rawList.isNotEmpty
             ? rawList.map((e) => e.toString()).toSet()
             : null;
-        final current = state.value ?? [];
+        final current = state.value!;
         final updated = current.map((m) {
           final matches = idsSet == null || idsSet.contains(m.id);
           if (matches && m.status.toLowerCase() == 'sent') {
@@ -95,13 +99,14 @@ class ChannelMessagesNotifier
 
     _readSub = _socketService.onMessagesRead.listen((data) {
       if (!mounted) return;
+      if (state.value == null) return;
       if (data['channelId'] == _channelId) {
         final rawList = data['messageIds'] as List?;
         final idsSet = rawList != null && rawList.isNotEmpty
             ? rawList.map((e) => e.toString()).toSet()
             : null;
         final readerId = data['readerId'] as String?;
-        final current = state.value ?? [];
+        final current = state.value!;
         final updated = current.map((m) {
           final matches = idsSet != null
               ? idsSet.contains(m.id)
@@ -161,7 +166,7 @@ class ChannelMessagesNotifier
   }
 }
 
-final channelMessagesProvider = StateNotifierProvider.autoDispose.family<
+final channelMessagesProvider = StateNotifierProvider.family<
     ChannelMessagesNotifier, AsyncValue<List<MessageModel>>, String>(
   (ref, channelId) {
     final repo = ref.watch(chatRepositoryProvider);

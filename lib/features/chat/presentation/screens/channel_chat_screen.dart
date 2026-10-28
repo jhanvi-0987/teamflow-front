@@ -46,6 +46,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
         ref.read(activeChatChannelProvider.notifier).state = widget.channel.id;
         ref.read(unreadMessagesProvider.notifier).markChannelAsRead(widget.channel.id);
         ref.read(chatRepositoryProvider).markAsRead(widget.channel.id).catchError((_) {});
+        ref.read(channelMessagesProvider(widget.channel.id).notifier).loadMessages();
       }
     });
   }
