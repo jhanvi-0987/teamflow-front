@@ -28,6 +28,7 @@ class SocketService {
   final _notificationCreatedController = StreamController<Map<String, dynamic>>.broadcast();
   final _messagesDeliveredController = StreamController<Map<String, dynamic>>.broadcast();
   final _messagesReadController = StreamController<Map<String, dynamic>>.broadcast();
+  final Set<String> _activeChannels = {};
 
   Stream<Map<String, dynamic>> get onTaskCreated => _taskCreatedController.stream;
   Stream<Map<String, dynamic>> get onTaskUpdated => _taskUpdatedController.stream;
@@ -83,6 +84,10 @@ class SocketService {
       debugPrint('[SocketService] Connected to $_socketUrl (Socket ID: ${_socket?.id})');
       _isConnected = true;
       _connectionStateController.add(true);
+      for (final channelId in _activeChannels) {
+        _socket!.emit('join:channel', {'channelId': channelId});
+        debugPrint('[SocketService] Re-joined active channel room on connect: $channelId');
+      }
     });
 
     _socket!.onDisconnect((reason) {
@@ -202,14 +207,16 @@ class SocketService {
   }
 
   void joinChannel(String channelId) {
-    if (_socket != null) {
+    _activeChannels.add(channelId);
+    if (_socket != null && _socket!.connected) {
       _socket!.emit('join:channel', {'channelId': channelId});
       debugPrint('[SocketService] Joined channel room: $channelId');
     }
   }
 
   void leaveChannel(String channelId) {
-    if (_socket != null) {
+    _activeChannels.remove(channelId);
+    if (_socket != null && _socket!.connected) {
       _socket!.emit('leave:channel', {'channelId': channelId});
       debugPrint('[SocketService] Left channel room: $channelId');
     }

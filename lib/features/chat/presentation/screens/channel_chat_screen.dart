@@ -316,6 +316,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
                         currentUser != null && msg.senderId == currentUser.id;
 
                     return _MessageBubble(
+                      key: ValueKey('${msg.id}_${msg.status}_${msg.readAt?.millisecondsSinceEpoch}'),
                       message: msg,
                       isMe: isMe,
                     );
@@ -473,6 +474,7 @@ class _MessageBubble extends StatelessWidget {
   final bool isMe;
 
   const _MessageBubble({
+    super.key,
     required this.message,
     required this.isMe,
   });
@@ -487,29 +489,30 @@ class _MessageBubble extends StatelessWidget {
   Widget _buildStatusTicks() {
     if (!isMe) return const SizedBox.shrink();
 
-    switch (message.status) {
-      case 'read':
-        // Double tick mark with blue color when recipient has read the message
-        return const Icon(
-          Icons.done_all_rounded,
-          size: 15,
-          color: Color(0xFF38BDF8),
-        );
-      case 'delivered':
-        // Two tick marks with gray color when recipient is online/message delivered
-        return Icon(
-          Icons.done_all_rounded,
-          size: 15,
-          color: Colors.white.withValues(alpha: 0.7),
-        );
-      case 'sent':
-      default:
-        // One tick mark when recipient is offline
-        return Icon(
-          Icons.check_rounded,
-          size: 14,
-          color: Colors.white.withValues(alpha: 0.7),
-        );
+    final isRead = message.status.toLowerCase() == 'read' || message.readAt != null;
+    final isDelivered = message.status.toLowerCase() == 'delivered' || message.deliveredAt != null;
+
+    if (isRead) {
+      // Double tick mark with blue color when recipient has read the message
+      return const Icon(
+        Icons.done_all_rounded,
+        size: 15,
+        color: Color(0xFF38BDF8),
+      );
+    } else if (isDelivered) {
+      // Two tick marks with gray color when recipient is online/message delivered
+      return Icon(
+        Icons.done_all_rounded,
+        size: 15,
+        color: Colors.white.withValues(alpha: 0.7),
+      );
+    } else {
+      // One tick mark when recipient is offline
+      return Icon(
+        Icons.check_rounded,
+        size: 14,
+        color: Colors.white.withValues(alpha: 0.7),
+      );
     }
   }
 

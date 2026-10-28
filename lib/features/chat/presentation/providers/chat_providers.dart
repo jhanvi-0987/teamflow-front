@@ -77,11 +77,15 @@ class ChannelMessagesNotifier
     _deliveredSub = _socketService.onMessagesDelivered.listen((data) {
       if (!mounted) return;
       if (data['channelId'] == _channelId) {
-        final messageIds = (data['messageIds'] as List?)?.cast<String>();
+        final rawList = data['messageIds'] as List?;
+        final idsSet = rawList != null && rawList.isNotEmpty
+            ? rawList.map((e) => e.toString()).toSet()
+            : null;
         final current = state.value ?? [];
         final updated = current.map((m) {
-          if ((messageIds == null || messageIds.contains(m.id)) && m.status == 'sent') {
-            return m.copyWith(status: 'delivered');
+          final matches = idsSet == null || idsSet.contains(m.id);
+          if (matches && m.status.toLowerCase() == 'sent') {
+            return m.copyWith(status: 'delivered', deliveredAt: DateTime.now());
           }
           return m;
         }).toList();
@@ -92,11 +96,18 @@ class ChannelMessagesNotifier
     _readSub = _socketService.onMessagesRead.listen((data) {
       if (!mounted) return;
       if (data['channelId'] == _channelId) {
-        final messageIds = (data['messageIds'] as List?)?.cast<String>();
+        final rawList = data['messageIds'] as List?;
+        final idsSet = rawList != null && rawList.isNotEmpty
+            ? rawList.map((e) => e.toString()).toSet()
+            : null;
+        final readerId = data['readerId'] as String?;
         final current = state.value ?? [];
         final updated = current.map((m) {
-          if ((messageIds == null || messageIds.contains(m.id)) && m.status != 'read') {
-            return m.copyWith(status: 'read');
+          final matches = idsSet != null
+              ? idsSet.contains(m.id)
+              : (readerId == null || m.senderId != readerId);
+          if (matches && m.status.toLowerCase() != 'read') {
+            return m.copyWith(status: 'read', readAt: DateTime.now());
           }
           return m;
         }).toList();
