@@ -148,15 +148,10 @@ class LocalNotificationService {
   }) async {
     final plugin = FlutterLocalNotificationsPlugin();
     String? channelId;
-    String? title;
 
     try {
       final data = jsonDecode(payloadString) as Map<String, dynamic>;
       channelId = data['channelId'] as String?;
-      final isDM = data['isDM'] == true || data['isDM'] == 'true';
-      title = isDM
-          ? (data['senderName'] as String? ?? 'Direct Message')
-          : '#${data['channelName'] ?? 'channel'}';
 
       String? token = data['accessToken'] as String?;
       if (token == null || token.isEmpty) {
@@ -172,51 +167,30 @@ class LocalNotificationService {
         // Send using standard dart:io HttpClient (independent of Flutter plugin engine)
         final client = HttpClient();
         client.connectionTimeout = const Duration(seconds: 10);
+        client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
         final normalizedBase = baseUrl.endsWith('/')
             ? baseUrl.substring(0, baseUrl.length - 1)
             : baseUrl;
         final uri = Uri.parse('$normalizedBase/channels/$channelId/messages');
+        debugPrint('[LocalNotificationService] Sending direct reply to $uri: "$replyText"');
         final request = await client.postUrl(uri);
         request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
         request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
         request.add(utf8.encode(jsonEncode({'content': replyText})));
         final httpResponse = await request.close();
+        final body = await httpResponse.transform(utf8.decoder).join();
         client.close();
-        debugPrint('[LocalNotificationService] Direct reply HTTP response: ${httpResponse.statusCode}');
+        debugPrint('[LocalNotificationService] Direct reply HTTP response: ${httpResponse.statusCode} - $body');
       } else {
-        debugPrint('[LocalNotificationService] Missing channelId or token for direct reply');
+        debugPrint('[LocalNotificationService] Missing channelId or token for direct reply: channelId=$channelId, hasToken=${token != null}');
       }
-    } catch (e) {
-      debugPrint('[LocalNotificationService] Direct reply error: $e');
+    } catch (e, st) {
+      debugPrint('[LocalNotificationService] Direct reply error: $e\n$st');
     } finally {
-      // CLEAR THE LOADING SPINNER:
-      // Re-posting on the same ID immediately tells Android OS that the RemoteInput is completed,
-      // which clears the spinner and displays the confirmation.
+      // Ensure the notification is completely dismissed in all cases
       try {
-        const androidDetails = AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: _channelDesc,
-          importance: Importance.low,
-          priority: Priority.low,
-          playSound: false,
-          enableVibration: false,
-          autoCancel: true,
-          icon: '@mipmap/ic_launcher',
-        );
-        await plugin.show(
-          id: notificationId,
-          title: title ?? 'TeamFlow',
-          body: '✓ Sent: $replyText',
-          notificationDetails: const NotificationDetails(android: androidDetails),
-        );
-        // Automatically dismiss the confirmation after 1.5 seconds
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          plugin.cancel(id: notificationId).catchError((_) {});
-        });
-      } catch (e) {
-        plugin.cancel(id: notificationId).catchError((_) {});
-      }
+        await plugin.cancel(id: notificationId);
+      } catch (_) {}
     }
   }
 
@@ -261,7 +235,7 @@ class LocalNotificationService {
               ),
             ],
             allowGeneratedReplies: true,
-            cancelNotification: false,
+            cancelNotification: true,
           ),
         ],
       );
