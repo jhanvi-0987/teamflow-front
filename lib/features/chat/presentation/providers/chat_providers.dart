@@ -194,3 +194,10 @@ final channelTypingProvider =
     return null;
   });
 });
+
+/// Provider for fetching full channel/DM details including members and roles
+final channelDetailsProvider =
+    FutureProvider.family<Map<String, dynamic>, String>((ref, channelId) {
+  final repo = ref.watch(chatRepositoryProvider);
+  return repo.getChannelDetails(channelId);
+});

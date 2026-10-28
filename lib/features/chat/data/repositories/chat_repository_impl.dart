@@ -50,4 +50,8 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<void> markAsRead(String channelId) =>
       _remoteDataSource.markAsRead(channelId);
+
+  @override
+  Future<Map<String, dynamic>> getChannelDetails(String channelId) =>
+      _remoteDataSource.getChannelDetails(channelId);
 }

@@ -22,4 +22,6 @@ abstract class ChatRepository {
   });
 
   Future<void> markAsRead(String channelId);
+
+  Future<Map<String, dynamic>> getChannelDetails(String channelId);
 }

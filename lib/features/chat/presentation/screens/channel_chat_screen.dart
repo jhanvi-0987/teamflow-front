@@ -12,6 +12,8 @@ import '../../domain/models/message_model.dart';
 import '../providers/chat_providers.dart';
 import '../providers/chat_notification_providers.dart';
 import '../../../projects/presentation/providers/project_providers.dart';
+import 'user_profile_detail_screen.dart';
+import 'team_channel_detail_screen.dart';
 
 class ChannelChatScreen extends ConsumerStatefulWidget {
   final ChannelModel channel;
@@ -131,6 +133,22 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
     }
   }
 
+  void _openDetailsScreen(BuildContext context) {
+    if (widget.channel.isDM) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => UserProfileDetailScreen(channel: widget.channel),
+        ),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TeamChannelDetailScreen(channel: widget.channel),
+        ),
+      );
+    }
+  }
+
   void _showTaskPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -176,64 +194,83 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         titleSpacing: 0,
-        title: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                gradient: isDM
-                    ? const LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                      )
-                    : AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                isDM
-                    ? (widget.channel.name.isNotEmpty
-                        ? widget.channel.name[0].toUpperCase()
-                        : '@')
-                    : '#',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isDM ? widget.channel.name : '#${widget.channel.name}',
+        title: InkWell(
+          onTap: () => _openDetailsScreen(context),
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    gradient: isDM
+                        ? const LinearGradient(
+                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                          )
+                        : AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    isDM
+                        ? (widget.channel.name.isNotEmpty
+                            ? widget.channel.name[0].toUpperCase()
+                            : '@')
+                        : '#',
                     style: const TextStyle(
-                      fontSize: 16,
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      fontSize: 18,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    widget.channel.topic?.isNotEmpty == true
-                        ? widget.channel.topic!
-                        : (isDM ? 'Direct conversation' : 'Team Channel'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary.withValues(alpha: 0.8),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isDM ? widget.channel.name : '#${widget.channel.name}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        widget.channel.topic?.isNotEmpty == true
+                            ? widget.channel.topic!
+                            : (isDM ? 'Tap for contact info' : 'Tap for team details'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.8),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.textPrimary,
+              size: 22,
+            ),
+            tooltip: isDM ? 'User Profile' : 'Channel Details',
+            onPressed: () => _openDetailsScreen(context),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: Column(
         children: [

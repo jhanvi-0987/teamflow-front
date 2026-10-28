@@ -25,6 +25,8 @@ abstract class ChatRemoteDataSource {
   });
 
   Future<void> markAsRead(String channelId);
+
+  Future<Map<String, dynamic>> getChannelDetails(String channelId);
 }
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
@@ -121,6 +123,16 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   Future<void> markAsRead(String channelId) async {
     try {
       await dio.post(ApiEndpoints.channelRead(channelId));
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getChannelDetails(String channelId) async {
+    try {
+      final response = await dio.get(ApiEndpoints.channelDetails(channelId));
+      return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       throw _handleError(e);
     }

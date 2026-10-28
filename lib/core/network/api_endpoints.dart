@@ -75,6 +75,8 @@ class ApiEndpoints {
       '/channels/$channelId/messages';
   static String channelRead(String channelId) =>
       '/channels/$channelId/read';
+  static String channelDetails(String channelId) =>
+      '/channels/$channelId';
 
   // Notification endpoints
   static const String notifications = '/notifications';
