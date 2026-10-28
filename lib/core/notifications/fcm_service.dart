@@ -7,14 +7,38 @@ import '../../features/chat/domain/models/channel_model.dart';
 import '../../features/chat/domain/models/message_notification.dart';
 import '../../features/chat/presentation/providers/chat_notification_providers.dart';
 import '../../features/chat/presentation/screens/channel_chat_screen.dart';
+import 'local_notification_service.dart';
 import '../network/api_client.dart';
 import '../../features/authentication/presentation/providers/auth_providers.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
+    WidgetsFlutterBinding.ensureInitialized();
     await Firebase.initializeApp();
     debugPrint('[FCM Background] Handling background message: ${message.messageId}');
+    final data = message.data;
+    if (data.isEmpty) return;
+
+    final channelId = data['channelId']?.toString() ?? '';
+    if (channelId.isEmpty) return;
+
+    final notif = MessageNotification(
+      messageId: data['messageId']?.toString() ?? message.messageId,
+      channelId: channelId,
+      channelName: data['channelName']?.toString() ?? data['title']?.toString() ?? 'General',
+      isDM: data['isDM'] == 'true' || data['isDM'] == true,
+      senderId: data['senderId']?.toString() ?? '',
+      senderName: data['senderName']?.toString() ?? data['title']?.toString() ?? 'Teammate',
+      senderEmail: data['senderEmail']?.toString() ?? '',
+      content: data['content']?.toString() ?? data['body']?.toString() ?? '',
+      taskId: data['taskId']?.toString(),
+      taskTitle: data['taskTitle']?.toString(),
+      workspaceId: data['workspaceId']?.toString() ?? '',
+      createdAt: DateTime.now(),
+    );
+
+    await LocalNotificationService.showNotification(notif);
   } catch (e) {
     debugPrint('[FCM Background] Error in background handler: $e');
   }

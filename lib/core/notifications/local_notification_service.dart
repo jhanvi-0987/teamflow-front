@@ -209,6 +209,24 @@ class LocalNotificationService {
           ? notification.content
           : '${notification.senderName}: ${notification.content}';
 
+      final person = Person(
+        name: notification.senderName.isNotEmpty ? notification.senderName : 'Teammate',
+        key: notification.senderId,
+      );
+
+      final message = Message(
+        notification.content,
+        notification.createdAt,
+        person,
+      );
+
+      final messagingStyle = MessagingStyleInformation(
+        person,
+        conversationTitle: isDM ? null : '#${notification.channelName}',
+        groupConversation: !isDM,
+        messages: [message],
+      );
+
       final androidDetails = AndroidNotificationDetails(
         _channelId,
         _channelName,
@@ -219,23 +237,17 @@ class LocalNotificationService {
         enableVibration: true,
         category: AndroidNotificationCategory.message,
         icon: '@mipmap/ic_launcher',
-        styleInformation: BigTextStyleInformation(
-          body,
-          contentTitle: title,
-          summaryText: isDM ? 'Direct Message' : '#${notification.channelName}',
-        ),
+        styleInformation: messagingStyle,
         actions: const <AndroidNotificationAction>[
           AndroidNotificationAction(
             replyActionId,
             'Reply',
-            icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
             inputs: <AndroidNotificationActionInput>[
               AndroidNotificationActionInput(
                 label: 'Type a reply...',
               ),
             ],
             allowGeneratedReplies: true,
-            cancelNotification: true,
           ),
         ],
       );
