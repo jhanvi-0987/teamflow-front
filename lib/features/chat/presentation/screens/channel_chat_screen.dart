@@ -85,14 +85,18 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
     });
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        if (animate) {
+          _scrollController.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scrollController.jumpTo(0.0);
+        }
       }
     });
   }
@@ -149,10 +153,16 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
     final typingUser = ref.watch(channelTypingProvider(widget.channel.id)).value;
     final currentUser = ref.watch(authControllerProvider).user;
 
-    // Auto-scroll on new messages
-    ref.listen(channelMessagesProvider(widget.channel.id), (_, next) {
-      if (next.hasValue) {
-        _scrollToBottom();
+    // Auto-scroll to bottom only when new incoming messages arrive
+    ref.listen(channelMessagesProvider(widget.channel.id), (prev, next) {
+      if (prev?.hasValue == true && next.hasValue) {
+        final prevCount = prev!.value?.length ?? 0;
+        final nextCount = next.value?.length ?? 0;
+        if (nextCount > prevCount) {
+          if (_scrollController.hasClients && _scrollController.offset < 150) {
+            _scrollToBottom(animate: true);
+          }
+        }
       }
     });
 
@@ -307,11 +317,12 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
+                  reverse: true,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final msg = messages[index];
+                    final msg = messages[messages.length - 1 - index];
                     final isMe =
                         currentUser != null && msg.senderId == currentUser.id;
 
