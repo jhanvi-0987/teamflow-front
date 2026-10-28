@@ -31,15 +31,20 @@ class ChannelMessagesNotifier
   final ChatRepository _repository;
   final SocketService _socketService;
   final String _channelId;
+  final Ref _ref;
   StreamSubscription? _messageSub;
+  StreamSubscription? _deliveredSub;
+  StreamSubscription? _readSub;
 
   ChannelMessagesNotifier({
     required ChatRepository repository,
     required SocketService socketService,
     required String channelId,
+    required Ref ref,
   })  : _repository = repository,
         _socketService = socketService,
         _channelId = channelId,
+        _ref = ref,
         super(const AsyncValue.loading()) {
     _init();
   }
@@ -58,6 +63,40 @@ class ChannelMessagesNotifier
         if (!current.any((m) => m.id == newMsg.id)) {
           state = AsyncValue.data([...current, newMsg]);
         }
+        final currentUserId = _ref.read(authControllerProvider).user?.id;
+        if (currentUserId != null && newMsg.senderId != currentUserId) {
+          _repository.markAsRead(_channelId).catchError((_) {});
+        }
+      }
+    });
+
+    _deliveredSub = _socketService.onMessagesDelivered.listen((data) {
+      if (!mounted) return;
+      if (data['channelId'] == _channelId) {
+        final messageIds = (data['messageIds'] as List?)?.cast<String>();
+        final current = state.value ?? [];
+        final updated = current.map((m) {
+          if ((messageIds == null || messageIds.contains(m.id)) && m.status == 'sent') {
+            return m.copyWith(status: 'delivered');
+          }
+          return m;
+        }).toList();
+        state = AsyncValue.data(updated);
+      }
+    });
+
+    _readSub = _socketService.onMessagesRead.listen((data) {
+      if (!mounted) return;
+      if (data['channelId'] == _channelId) {
+        final messageIds = (data['messageIds'] as List?)?.cast<String>();
+        final current = state.value ?? [];
+        final updated = current.map((m) {
+          if ((messageIds == null || messageIds.contains(m.id)) && m.status != 'read') {
+            return m.copyWith(status: 'read');
+          }
+          return m;
+        }).toList();
+        state = AsyncValue.data(updated);
       }
     });
   }
@@ -100,6 +139,8 @@ class ChannelMessagesNotifier
   @override
   void dispose() {
     _messageSub?.cancel();
+    _deliveredSub?.cancel();
+    _readSub?.cancel();
     _socketService.leaveChannel(_channelId);
     super.dispose();
   }
@@ -114,6 +155,7 @@ final channelMessagesProvider = StateNotifierProvider.family<
       repository: repo,
       socketService: socket,
       channelId: channelId,
+      ref: ref,
     );
   },
 );

@@ -26,6 +26,8 @@ class SocketService {
   final _userTypingController = StreamController<Map<String, dynamic>>.broadcast();
   final _messageNotificationController = StreamController<Map<String, dynamic>>.broadcast();
   final _notificationCreatedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _messagesDeliveredController = StreamController<Map<String, dynamic>>.broadcast();
+  final _messagesReadController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get onTaskCreated => _taskCreatedController.stream;
   Stream<Map<String, dynamic>> get onTaskUpdated => _taskUpdatedController.stream;
@@ -37,6 +39,8 @@ class SocketService {
   Stream<Map<String, dynamic>> get onUserTyping => _userTypingController.stream;
   Stream<Map<String, dynamic>> get onMessageNotification => _messageNotificationController.stream;
   Stream<Map<String, dynamic>> get onNotificationCreated => _notificationCreatedController.stream;
+  Stream<Map<String, dynamic>> get onMessagesDelivered => _messagesDeliveredController.stream;
+  Stream<Map<String, dynamic>> get onMessagesRead => _messagesReadController.stream;
 
   SocketService({
     required TokenStorage tokenStorage,
@@ -162,6 +166,20 @@ class SocketService {
       }
     });
 
+    _socket!.on('chat:messages_delivered', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time messages delivered: $data');
+        _messagesDeliveredController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('chat:messages_read', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time messages read: $data');
+        _messagesReadController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
     _socket!.on('auth:expired', (data) {
       debugPrint('[SocketService] Auth token expired on server: $data');
     });
@@ -231,6 +249,8 @@ class SocketService {
     _userTypingController.close();
     _messageNotificationController.close();
     _notificationCreatedController.close();
+    _messagesDeliveredController.close();
+    _messagesReadController.close();
   }
 }
 

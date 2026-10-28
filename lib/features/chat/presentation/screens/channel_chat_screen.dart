@@ -479,6 +479,35 @@ class _MessageBubble extends StatelessWidget {
     return '$hour:$minute';
   }
 
+  Widget _buildStatusTicks() {
+    if (!isMe) return const SizedBox.shrink();
+
+    switch (message.status) {
+      case 'read':
+        // Double tick mark with blue color when recipient has read the message
+        return const Icon(
+          Icons.done_all_rounded,
+          size: 15,
+          color: Color(0xFF38BDF8),
+        );
+      case 'delivered':
+        // Two tick marks with gray color when recipient is online/message delivered
+        return Icon(
+          Icons.done_all_rounded,
+          size: 15,
+          color: Colors.white.withValues(alpha: 0.7),
+        );
+      case 'sent':
+      default:
+        // One tick mark when recipient is offline
+        return Icon(
+          Icons.check_rounded,
+          size: 14,
+          color: Colors.white.withValues(alpha: 0.7),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -645,14 +674,23 @@ class _MessageBubble extends StatelessWidget {
                       ],
 
                       const SizedBox(height: 4),
-                      Text(
-                        _formatTime(message.createdAt),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: isMe
-                              ? Colors.white.withValues(alpha: 0.7)
-                              : AppColors.textSecondary.withValues(alpha: 0.6),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _formatTime(message.createdAt),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isMe
+                                  ? Colors.white.withValues(alpha: 0.7)
+                                  : AppColors.textSecondary.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          if (isMe) ...[
+                            const SizedBox(width: 4),
+                            _buildStatusTicks(),
+                          ],
+                        ],
                       ),
                     ],
                   ),
