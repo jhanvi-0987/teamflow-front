@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/realtime/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../tasks/domain/models/task_model.dart';
@@ -32,16 +33,19 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
   String? _selectedTaskId;
   String? _selectedTaskTitle;
   late final StateController<String?> _activeChannelNotifier;
+  late final SocketService _socketService;
 
   @override
   void initState() {
     super.initState();
     // Cached because `ref` cannot be used in dispose() once the element is torn down.
     _activeChannelNotifier = ref.read(activeChatChannelProvider.notifier);
+    _socketService = ref.read(socketServiceProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(activeChatChannelProvider.notifier).state = widget.channel.id;
         ref.read(unreadMessagesProvider.notifier).markChannelAsRead(widget.channel.id);
+        ref.read(chatRepositoryProvider).markAsRead(widget.channel.id).catchError((_) {});
       }
     });
   }
@@ -53,6 +57,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
     _scrollController.dispose();
     final activeNotifier = _activeChannelNotifier;
     final channelId = widget.channel.id;
+    _socketService.leaveChannel(channelId);
     // Deferred: provider state can't change while the widget tree is finalizing.
     Future.microtask(() {
       if (activeNotifier.mounted && activeNotifier.state == channelId) {

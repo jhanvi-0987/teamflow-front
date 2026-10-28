@@ -7,6 +7,7 @@ import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_model.dart';
 import '../../domain/repositories/chat_repository.dart';
+import 'chat_notification_providers.dart';
 
 final chatRemoteDataSourceProvider = Provider<ChatRemoteDataSource>((ref) {
   final apiClient = ref.watch(apiClientProvider);
@@ -63,8 +64,11 @@ class ChannelMessagesNotifier
         if (!current.any((m) => m.id == newMsg.id)) {
           state = AsyncValue.data([...current, newMsg]);
         }
+        final activeChannelId = _ref.read(activeChatChannelProvider);
         final currentUserId = _ref.read(authControllerProvider).user?.id;
-        if (currentUserId != null && newMsg.senderId != currentUserId) {
+        if (activeChannelId == _channelId &&
+            currentUserId != null &&
+            newMsg.senderId != currentUserId) {
           _repository.markAsRead(_channelId).catchError((_) {});
         }
       }
@@ -146,7 +150,7 @@ class ChannelMessagesNotifier
   }
 }
 
-final channelMessagesProvider = StateNotifierProvider.family<
+final channelMessagesProvider = StateNotifierProvider.autoDispose.family<
     ChannelMessagesNotifier, AsyncValue<List<MessageModel>>, String>(
   (ref, channelId) {
     final repo = ref.watch(chatRepositoryProvider);
