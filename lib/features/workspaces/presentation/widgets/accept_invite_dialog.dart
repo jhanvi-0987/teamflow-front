@@ -7,13 +7,14 @@ import '../../domain/models/invitation.dart';
 import '../providers/workspace_providers.dart';
 
 class AcceptInviteDialog extends ConsumerStatefulWidget {
-  const AcceptInviteDialog({super.key});
+  final String? initialToken;
+  const AcceptInviteDialog({super.key, this.initialToken});
 
-  static Future<void> show(BuildContext context) {
+  static Future<void> show(BuildContext context, {String? initialToken}) {
     return showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (context) => const AcceptInviteDialog(),
+      builder: (context) => AcceptInviteDialog(initialToken: initialToken),
     );
   }
 
@@ -26,6 +27,17 @@ class _AcceptInviteDialogState extends ConsumerState<AcceptInviteDialog> {
   bool _isLoadingPreview = false;
   bool _isAccepting = false;
   Invitation? _preview;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialToken != null && widget.initialToken!.isNotEmpty) {
+      _tokenController.text = widget.initialToken!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fetchPreview();
+      });
+    }
+  }
 
   @override
   void dispose() {

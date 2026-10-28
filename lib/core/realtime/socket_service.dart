@@ -25,6 +25,7 @@ class SocketService {
   final _chatMessageController = StreamController<Map<String, dynamic>>.broadcast();
   final _userTypingController = StreamController<Map<String, dynamic>>.broadcast();
   final _messageNotificationController = StreamController<Map<String, dynamic>>.broadcast();
+  final _notificationCreatedController = StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, dynamic>> get onTaskCreated => _taskCreatedController.stream;
   Stream<Map<String, dynamic>> get onTaskUpdated => _taskUpdatedController.stream;
@@ -35,6 +36,7 @@ class SocketService {
   Stream<Map<String, dynamic>> get onChatMessage => _chatMessageController.stream;
   Stream<Map<String, dynamic>> get onUserTyping => _userTypingController.stream;
   Stream<Map<String, dynamic>> get onMessageNotification => _messageNotificationController.stream;
+  Stream<Map<String, dynamic>> get onNotificationCreated => _notificationCreatedController.stream;
 
   SocketService({
     required TokenStorage tokenStorage,
@@ -153,6 +155,13 @@ class SocketService {
       }
     });
 
+    _socket!.on('notification:created', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time notification received: $data');
+        _notificationCreatedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
     _socket!.on('auth:expired', (data) {
       debugPrint('[SocketService] Auth token expired on server: $data');
     });
@@ -221,6 +230,7 @@ class SocketService {
     _chatMessageController.close();
     _userTypingController.close();
     _messageNotificationController.close();
+    _notificationCreatedController.close();
   }
 }
 

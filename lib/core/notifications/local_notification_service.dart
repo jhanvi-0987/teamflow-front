@@ -1,10 +1,37 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../auth/token_storage.dart';
+import '../network/api_endpoints.dart';
 import '../../app/router.dart';
 import '../../features/chat/domain/models/channel_model.dart';
 import '../../features/chat/domain/models/message_notification.dart';
 import '../../features/chat/presentation/screens/channel_chat_screen.dart';
+
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse response) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (response.actionId == LocalNotificationService.replyActionId) {
+    final text = response.input;
+    final payload = response.payload;
+    if (text != null && text.trim().isNotEmpty && payload != null) {
+      try {
+        final data = jsonDecode(payload) as Map<String, dynamic>;
+        final channelId = data['channelId'] as String?;
+        if (channelId != null && channelId.isNotEmpty) {
+          await LocalNotificationService.sendReply(channelId, text.trim());
+          if (response.id != null) {
+            final plugin = FlutterLocalNotificationsPlugin();
+            await plugin.cancel(id: response.id!);
+          }
+        }
+      } catch (e) {
+        debugPrint('[LocalNotificationService] Background reply error: $e');
+      }
+    }
+  }
+}
 
 class LocalNotificationService {
   LocalNotificationService._();
@@ -14,6 +41,7 @@ class LocalNotificationService {
 
   static bool _isInitialized = false;
 
+  static const String replyActionId = 'reply_action';
   static const String _channelId = 'teamflow_messages_channel';
   static const String _channelName = 'TeamFlow Messages';
   static const String _channelDesc = 'Incoming channel and direct messages';
@@ -22,13 +50,28 @@ class LocalNotificationService {
     if (_isInitialized) return;
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const darwinSettings = DarwinInitializationSettings(
+    final darwinCategories = <DarwinNotificationCategory>[
+      DarwinNotificationCategory(
+        'message_category',
+        actions: <DarwinNotificationAction>[
+          DarwinNotificationAction.text(
+            replyActionId,
+            'Reply',
+            buttonTitle: 'Send',
+            placeholder: 'Type a reply...',
+          ),
+        ],
+      ),
+    ];
+
+    final darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
+      notificationCategories: darwinCategories,
     );
 
-    const initSettings = InitializationSettings(
+    final initSettings = InitializationSettings(
       android: androidSettings,
       iOS: darwinSettings,
       macOS: darwinSettings,
@@ -37,9 +80,10 @@ class LocalNotificationService {
     await _notificationsPlugin.initialize(
       settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
-    // Create high-importance notification channel for Android status bar
+    // Create high-importance notification channel for Android status bar / heads-up notification
     final androidImpl = _notificationsPlugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (androidImpl != null) {
@@ -60,7 +104,29 @@ class LocalNotificationService {
     debugPrint('[LocalNotificationService] System notification bar service initialized');
   }
 
-  static void _onNotificationTapped(NotificationResponse response) {
+  static Future<void> _onNotificationTapped(NotificationResponse response) async {
+    // Handle inline direct reply action
+    if (response.actionId == replyActionId) {
+      final text = response.input;
+      final payload = response.payload;
+      if (text != null && text.trim().isNotEmpty && payload != null) {
+        try {
+          final data = jsonDecode(payload) as Map<String, dynamic>;
+          final channelId = data['channelId'] as String?;
+          if (channelId != null && channelId.isNotEmpty) {
+            await sendReply(channelId, text.trim());
+            if (response.id != null) {
+              await _notificationsPlugin.cancel(id: response.id!);
+            }
+          }
+        } catch (e) {
+          debugPrint('[LocalNotificationService] Error sending direct reply: $e');
+        }
+      }
+      return;
+    }
+
+    // Normal notification tap: open chat screen
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
 
@@ -89,6 +155,40 @@ class LocalNotificationService {
     }
   }
 
+  static Future<void> sendReply(String channelId, String content) async {
+    try {
+      final tokenStorage = SecureTokenStorage();
+      final token = await tokenStorage.getAccessToken();
+      if (token == null || token.isEmpty) {
+        debugPrint('[LocalNotificationService] No access token found to send reply');
+        return;
+      }
+
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: ApiEndpoints.baseUrl,
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+
+      await dio.post(
+        ApiEndpoints.channelSendMessage(channelId),
+        data: {
+          'content': content.trim(),
+        },
+      );
+      debugPrint('[LocalNotificationService] Reply successfully sent to channel $channelId');
+    } catch (e) {
+      debugPrint('[LocalNotificationService] Failed to send reply: $e');
+    }
+  }
+
   static Future<void> showNotification(MessageNotification notification) async {
     try {
       if (!_isInitialized) {
@@ -98,9 +198,11 @@ class LocalNotificationService {
       final isDM = notification.isDM;
       final title = isDM
           ? notification.senderName
-          : '${notification.senderName} (#${notification.channelName})';
+          : '#${notification.channelName}';
 
-      final body = notification.content;
+      final body = isDM
+          ? notification.content
+          : '${notification.senderName}: ${notification.content}';
 
       final androidDetails = AndroidNotificationDetails(
         _channelId,
@@ -110,19 +212,33 @@ class LocalNotificationService {
         priority: Priority.high,
         playSound: true,
         enableVibration: true,
-        color: const Color(0xFF504B38),
+        category: AndroidNotificationCategory.message,
         icon: '@mipmap/ic_launcher',
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,
           summaryText: isDM ? 'Direct Message' : '#${notification.channelName}',
         ),
+        actions: const <AndroidNotificationAction>[
+          AndroidNotificationAction(
+            replyActionId,
+            'Reply',
+            icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+            inputs: <AndroidNotificationActionInput>[
+              AndroidNotificationActionInput(
+                label: 'Type a reply...',
+              ),
+            ],
+            allowGeneratedReplies: true,
+          ),
+        ],
       );
 
       const darwinDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
+        categoryIdentifier: 'message_category',
       );
 
       final details = NotificationDetails(
@@ -155,7 +271,7 @@ class LocalNotificationService {
         payload: payload,
       );
 
-      debugPrint('[LocalNotificationService] Notification posted to system status bar: $title');
+      debugPrint('[LocalNotificationService] Notification posted to system status bar with Reply action: $title');
     } catch (e) {
       debugPrint('[LocalNotificationService] Failed to post status bar notification: $e');
     }

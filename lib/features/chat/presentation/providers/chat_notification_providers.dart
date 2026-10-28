@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/router.dart';
-import '../../../../core/notifications/in_app_notification_service.dart';
+import '../../../../core/notifications/local_notification_service.dart';
 import '../../../../core/realtime/socket_service.dart';
 import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_notification.dart';
@@ -127,13 +127,11 @@ class UnreadMessagesNotifier extends StateNotifier<UnreadMessagesState> {
         '[UnreadMessagesNotifier] Updated channel card for ${notif.channelId}: unread=${updatedCounts[notif.channelId]}, msg="${notif.content}"',
       );
 
-      // Always show in-app banner toast for all incoming messages as requested
-      InAppNotificationService.show(
-        notif,
-        onTap: (notification) => openChannelFromNotification(notification),
-      );
-
-      // LocalNotificationService is removed so only Firebase handles system status bar
+      // Show proper native system notification in the phone's notification bar (like WhatsApp)
+      // Only show when the user is not actively viewing this channel
+      if (!isCurrentChannelOpen) {
+        LocalNotificationService.showNotification(notif).catchError((_) {});
+      }
     } catch (e) {
       debugPrint('[UnreadMessagesNotifier] Error handling notification: $e');
     }

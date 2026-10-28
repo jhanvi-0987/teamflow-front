@@ -14,6 +14,7 @@ import '../../../workspaces/presentation/widgets/accept_invite_dialog.dart';
 import '../../../workspaces/presentation/widgets/create_workspace_dialog.dart';
 import '../../../workspaces/presentation/widgets/invite_member_dialog.dart';
 import '../../../workspaces/presentation/widgets/workspace_switcher_sheet.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 
 class ProjectsTabView extends ConsumerWidget {
   const ProjectsTabView({super.key});
@@ -141,6 +142,10 @@ class ProjectsTabView extends ConsumerWidget {
                 ),
               ),
               actions: [
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: NotificationBellButton(),
+                ),
                 IconButton(
                   icon: const Icon(Icons.swap_horiz_rounded,
                       color: AppColors.primary),

@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../chat/presentation/providers/chat_notification_providers.dart';
 import '../../../chat/presentation/screens/channels_list_screen.dart';
 import '../../../workspaces/presentation/providers/workspace_providers.dart';
+import '../../../notifications/presentation/providers/notifications_providers.dart';
 import '../widgets/custom_bottom_nav_bar.dart';
 import '../widgets/quick_actions_sheet.dart';
 import 'activity_tab_view.dart';
@@ -30,6 +31,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref.read(socketServiceProvider).connect();
       ref.read(fcmServiceProvider).initialize();
       ref.read(workspaceControllerProvider.notifier).loadWorkspaces();
+      ref.read(notificationsNotifierProvider.notifier).loadNotifications();
     });
   }
 

@@ -7,6 +7,7 @@ import '../../../workspaces/presentation/widgets/workspace_switcher_sheet.dart';
 import '../../domain/models/channel_model.dart';
 import '../providers/chat_providers.dart';
 import '../providers/chat_notification_providers.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 import 'channel_chat_screen.dart';
 
 enum _ChatFilter { all, channels, directMessages }
@@ -609,6 +610,8 @@ class _ChannelsListScreenState extends ConsumerState<ChannelsListScreen> {
                         // Action Icons
                         Row(
                           children: [
+                            const NotificationBellButton(),
+                            const SizedBox(width: 8),
                             _HeaderIconButton(
                               icon: Icons.chat_bubble_outline_rounded,
                               tooltip: 'New DM',

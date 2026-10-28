@@ -8,6 +8,7 @@ import '../../../workspaces/presentation/widgets/accept_invite_dialog.dart';
 import '../../../workspaces/presentation/widgets/create_workspace_dialog.dart';
 import '../../../workspaces/presentation/widgets/invite_member_dialog.dart';
 import '../../../workspaces/presentation/widgets/workspace_switcher_sheet.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 
 class WorkspaceTabView extends ConsumerWidget {
   const WorkspaceTabView({super.key});
@@ -33,6 +34,10 @@ class WorkspaceTabView extends ConsumerWidget {
           ),
         ),
         actions: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: NotificationBellButton(),
+          ),
           IconButton(
             icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
             tooltip: 'Switch Workspace',

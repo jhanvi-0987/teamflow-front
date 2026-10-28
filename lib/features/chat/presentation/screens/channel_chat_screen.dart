@@ -31,10 +31,13 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
   bool _isTyping = false;
   String? _selectedTaskId;
   String? _selectedTaskTitle;
+  late final StateController<String?> _activeChannelNotifier;
 
   @override
   void initState() {
     super.initState();
+    // Cached because `ref` cannot be used in dispose() once the element is torn down.
+    _activeChannelNotifier = ref.read(activeChatChannelProvider.notifier);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(activeChatChannelProvider.notifier).state = widget.channel.id;
@@ -48,10 +51,14 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
     _typingDebounce?.cancel();
     _textController.dispose();
     _scrollController.dispose();
-    final activeNotifier = ref.read(activeChatChannelProvider.notifier);
-    if (activeNotifier.state == widget.channel.id) {
-      activeNotifier.state = null;
-    }
+    final activeNotifier = _activeChannelNotifier;
+    final channelId = widget.channel.id;
+    // Deferred: provider state can't change while the widget tree is finalizing.
+    Future.microtask(() {
+      if (activeNotifier.mounted && activeNotifier.state == channelId) {
+        activeNotifier.state = null;
+      }
+    });
     super.dispose();
   }
 

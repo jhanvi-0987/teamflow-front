@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../workspaces/presentation/providers/workspace_providers.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 
 class ActivityTabView extends ConsumerWidget {
   const ActivityTabView({super.key});
@@ -39,6 +40,12 @@ class ActivityTabView extends ConsumerWidget {
             ),
           ],
         ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: NotificationBellButton(),
+          ),
+        ],
       ),
       body: membersAsync.when(
         loading: () => const Center(
