@@ -1,5 +1,6 @@
 import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_model.dart';
+import '../../domain/models/reaction_model.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../datasources/chat_remote_data_source.dart';
 
@@ -54,4 +55,12 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<Map<String, dynamic>> getChannelDetails(String channelId) =>
       _remoteDataSource.getChannelDetails(channelId);
+
+  @override
+  Future<List<ReactionGroupModel>> toggleReaction(
+    String channelId,
+    String messageId,
+    String emoji,
+  ) =>
+      _remoteDataSource.toggleReaction(channelId, messageId, emoji);
 }

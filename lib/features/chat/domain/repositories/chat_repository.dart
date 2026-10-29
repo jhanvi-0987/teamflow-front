@@ -1,5 +1,6 @@
 import '../models/channel_model.dart';
 import '../models/message_model.dart';
+import '../models/reaction_model.dart';
 
 abstract class ChatRepository {
   Future<List<ChannelModel>> getChannels(String workspaceId);
@@ -24,4 +25,10 @@ abstract class ChatRepository {
   Future<void> markAsRead(String channelId);
 
   Future<Map<String, dynamic>> getChannelDetails(String channelId);
+
+  Future<List<ReactionGroupModel>> toggleReaction(
+    String channelId,
+    String messageId,
+    String emoji,
+  );
 }

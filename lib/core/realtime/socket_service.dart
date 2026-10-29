@@ -28,6 +28,7 @@ class SocketService {
   final _taskLabelRemovedController = StreamController<Map<String, dynamic>>.broadcast();
   final _securityRevokedController = StreamController<Map<String, dynamic>>.broadcast();
   final _chatMessageController = StreamController<Map<String, dynamic>>.broadcast();
+  final _chatReactionUpdatedController = StreamController<Map<String, dynamic>>.broadcast();
   final _userTypingController = StreamController<Map<String, dynamic>>.broadcast();
   final _messageNotificationController = StreamController<Map<String, dynamic>>.broadcast();
   final _notificationCreatedController = StreamController<Map<String, dynamic>>.broadcast();
@@ -47,6 +48,7 @@ class SocketService {
   Stream<Map<String, dynamic>> get onTaskLabelRemoved => _taskLabelRemovedController.stream;
   Stream<Map<String, dynamic>> get onSecurityRevoked => _securityRevokedController.stream;
   Stream<Map<String, dynamic>> get onChatMessage => _chatMessageController.stream;
+  Stream<Map<String, dynamic>> get onChatReactionUpdated => _chatReactionUpdatedController.stream;
   Stream<Map<String, dynamic>> get onUserTyping => _userTypingController.stream;
   Stream<Map<String, dynamic>> get onMessageNotification => _messageNotificationController.stream;
   Stream<Map<String, dynamic>> get onNotificationCreated => _notificationCreatedController.stream;
@@ -191,6 +193,13 @@ class SocketService {
       }
     });
 
+    _socket!.on('chat:reaction_updated', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time reaction update received: $data');
+        _chatReactionUpdatedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
     _socket!.on('chat:user_typing', (data) {
       if (data is Map) {
         _userTypingController.add(Map<String, dynamic>.from(data));
@@ -298,6 +307,7 @@ class SocketService {
     _taskLabelRemovedController.close();
     _securityRevokedController.close();
     _chatMessageController.close();
+    _chatReactionUpdatedController.close();
     _userTypingController.close();
     _messageNotificationController.close();
     _notificationCreatedController.close();

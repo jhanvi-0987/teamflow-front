@@ -3,6 +3,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_model.dart';
+import '../../domain/models/reaction_model.dart';
 
 abstract class ChatRemoteDataSource {
   Future<List<ChannelModel>> getChannels(String workspaceId);
@@ -27,6 +28,12 @@ abstract class ChatRemoteDataSource {
   Future<void> markAsRead(String channelId);
 
   Future<Map<String, dynamic>> getChannelDetails(String channelId);
+
+  Future<List<ReactionGroupModel>> toggleReaction(
+    String channelId,
+    String messageId,
+    String emoji,
+  );
 }
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
@@ -133,6 +140,27 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     try {
       final response = await dio.get(ApiEndpoints.channelDetails(channelId));
       return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<List<ReactionGroupModel>> toggleReaction(
+    String channelId,
+    String messageId,
+    String emoji,
+  ) async {
+    try {
+      final response = await dio.post(
+        ApiEndpoints.messageReactions(channelId, messageId),
+        data: {'emoji': emoji},
+      );
+      final data = response.data as Map<String, dynamic>;
+      final list = data['reactions'] as List<dynamic>? ?? [];
+      return list
+          .map((item) => ReactionGroupModel.fromJson(item as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw _handleError(e);
     }

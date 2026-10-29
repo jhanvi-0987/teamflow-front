@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/chat/domain/models/message_model.dart';
 
 // Standalone widget replicating _MessageBubble tick rendering for direct widget testing
 Widget buildStatusTicksWidget({

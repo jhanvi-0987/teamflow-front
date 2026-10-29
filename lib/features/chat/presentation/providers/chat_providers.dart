@@ -7,6 +7,7 @@ import '../../data/datasources/chat_remote_data_source.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_model.dart';
+import '../../domain/models/reaction_model.dart';
 import '../../domain/repositories/chat_repository.dart';
 import 'chat_notification_providers.dart';
 
@@ -37,6 +38,7 @@ class ChannelMessagesNotifier
   StreamSubscription? _messageSub;
   StreamSubscription? _deliveredSub;
   StreamSubscription? _readSub;
+  StreamSubscription? _reactionSub;
 
   ChannelMessagesNotifier({
     required ChatRepository repository,
@@ -119,6 +121,29 @@ class ChannelMessagesNotifier
         state = AsyncValue.data(updated);
       }
     });
+
+    _reactionSub = _socketService.onChatReactionUpdated.listen((data) {
+      if (!mounted) return;
+      if (state.value == null) return;
+      if (data['channelId'] == _channelId) {
+        final messageId = data['messageId'] as String?;
+        final rawReactions = data['reactions'] as List?;
+        if (messageId != null && rawReactions != null) {
+          final reactions = rawReactions
+              .map((r) => ReactionGroupModel.fromJson(
+                  Map<String, dynamic>.from(r as Map)))
+              .toList();
+          final current = state.value!;
+          final updated = current.map((m) {
+            if (m.id == messageId) {
+              return m.copyWith(reactions: reactions);
+            }
+            return m;
+          }).toList();
+          state = AsyncValue.data(updated);
+        }
+      }
+    });
   }
 
   Future<void> loadMessages() async {
@@ -156,11 +181,35 @@ class ChannelMessagesNotifier
     _socketService.sendTyping(_channelId, isTyping);
   }
 
+  Future<void> toggleReaction(String messageId, String emoji) async {
+    try {
+      final updatedReactions = await _repository.toggleReaction(
+        _channelId,
+        messageId,
+        emoji,
+      );
+      if (!mounted) return;
+      if (state.value != null) {
+        final current = state.value!;
+        final updated = current.map((m) {
+          if (m.id == messageId) {
+            return m.copyWith(reactions: updatedReactions);
+          }
+          return m;
+        }).toList();
+        state = AsyncValue.data(updated);
+      }
+    } catch (_) {
+      // Real-time socket will sync if this was just a latency issue
+    }
+  }
+
   @override
   void dispose() {
     _messageSub?.cancel();
     _deliveredSub?.cancel();
     _readSub?.cancel();
+    _reactionSub?.cancel();
     _socketService.leaveChannel(_channelId);
     super.dispose();
   }

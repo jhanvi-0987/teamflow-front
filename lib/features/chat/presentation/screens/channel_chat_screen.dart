@@ -365,7 +365,8 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
                         currentUser != null && msg.senderId == currentUser.id;
 
                     return _MessageBubble(
-                      key: ValueKey('${msg.id}_${msg.status}_${msg.readAt?.millisecondsSinceEpoch}'),
+                      key: ValueKey(
+                          '${msg.id}_${msg.status}_${msg.reactions.fold<int>(0, (acc, r) => acc + r.count)}_${msg.readAt?.millisecondsSinceEpoch}'),
                       message: msg,
                       isMe: isMe,
                     );
@@ -518,7 +519,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
+class _MessageBubble extends ConsumerWidget {
   final MessageModel message;
   final bool isMe;
 
@@ -533,6 +534,91 @@ class _MessageBubble extends StatelessWidget {
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  void _showReactionPicker(
+      BuildContext context, WidgetRef ref, String? currentUserId) {
+    const emojis = ['👍', '❤️', '🎉', '🚀', '👀', '🔥'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Text(
+              'Add Reaction',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: emojis.map((emoji) {
+                final existing = message.reactions
+                    .where((r) => r.emoji == emoji)
+                    .toList();
+                final isSelected = currentUserId != null &&
+                    existing.isNotEmpty &&
+                    existing.first.hasReacted(currentUserId);
+
+                return InkWell(
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    ref
+                        .read(
+                            channelMessagesProvider(message.channelId).notifier)
+                        .toggleReaction(message.id, emoji);
+                  },
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary.withValues(alpha: 0.15)
+                          : Colors.transparent,
+                      shape: BoxShape.circle,
+                      border: isSelected
+                          ? Border.all(color: AppColors.primary, width: 1.5)
+                          : null,
+                    ),
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildStatusTicks() {
@@ -566,7 +652,9 @@ class _MessageBubble extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUserId = ref.watch(authControllerProvider).user?.id;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       child: Row(
@@ -608,150 +696,236 @@ class _MessageBubble extends StatelessWidget {
                       ),
                     ),
                   ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: isMe ? AppColors.primaryGradient : null,
-                    color: isMe ? null : Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: isMe
-                          ? const Radius.circular(16)
-                          : const Radius.circular(2),
-                      bottomRight: isMe
-                          ? const Radius.circular(2)
-                          : const Radius.circular(16),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                GestureDetector(
+                  onLongPress: () =>
+                      _showReactionPicker(context, ref, currentUserId),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: isMe ? AppColors.primaryGradient : null,
+                      color: isMe ? null : Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(16),
+                        topRight: const Radius.circular(16),
+                        bottomLeft: isMe
+                            ? const Radius.circular(16)
+                            : const Radius.circular(2),
+                        bottomRight: isMe
+                            ? const Radius.circular(2)
+                            : const Radius.circular(16),
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: isMe
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                    children: [
-                      // Text content
-                      Text(
-                        message.content,
-                        style: TextStyle(
-                          color: isMe ? Colors.white : AppColors.textPrimary,
-                          fontSize: 14,
-                          height: 1.35,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: [
+                        // Text content
+                        Text(
+                          message.content,
+                          style: TextStyle(
+                            color: isMe ? Colors.white : AppColors.textPrimary,
+                            fontSize: 14,
+                            height: 1.35,
+                          ),
+                        ),
 
-                      // Embedded Interactive Task Card
-                      if (message.hasLinkedTask) ...[
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: () {
-                            if (message.taskId != null) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => TaskDetailScreen(
-                                    taskId: message.taskId!,
+                        // Embedded Interactive Task Card
+                        if (message.hasLinkedTask) ...[
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () {
+                              if (message.taskId != null) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => TaskDetailScreen(
+                                      taskId: message.taskId!,
+                                    ),
                                   ),
+                                );
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isMe
+                                    ? Colors.white.withValues(alpha: 0.15)
+                                    : const Color(0xFFF9FAFB),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isMe
+                                      ? Colors.white.withValues(alpha: 0.3)
+                                      : const Color(0xFFE5E7EB),
                                 ),
-                              );
-                            }
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.assignment_outlined,
+                                    size: 18,
+                                    color: isMe
+                                        ? Colors.white
+                                        : AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          message.taskTitle ?? 'Linked Task',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isMe
+                                                ? Colors.white
+                                                : AppColors.textPrimary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (message.taskStatus != null)
+                                          Text(
+                                            'Status: ${message.taskStatus}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isMe
+                                                  ? Colors.white
+                                                      .withValues(alpha: 0.8)
+                                                  : AppColors.textSecondary,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 16,
+                                    color: isMe
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _formatTime(message.createdAt),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isMe
+                                    ? Colors.white.withValues(alpha: 0.7)
+                                    : AppColors.textSecondary
+                                        .withValues(alpha: 0.6),
+                              ),
+                            ),
+                            if (isMe) ...[
+                              const SizedBox(width: 4),
+                              _buildStatusTicks(),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Reaction chips
+                if (message.hasReactions) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    alignment: isMe ? WrapAlignment.end : WrapAlignment.start,
+                    children: [
+                      ...message.reactions.map((reaction) {
+                        final hasReacted = currentUserId != null &&
+                            reaction.hasReacted(currentUserId);
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            ref
+                                .read(channelMessagesProvider(message.channelId)
+                                    .notifier)
+                                .toggleReaction(message.id, reaction.emoji);
                           },
                           child: Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
                             decoration: BoxDecoration(
-                              color: isMe
-                                  ? Colors.white.withValues(alpha: 0.15)
-                                  : const Color(0xFFF9FAFB),
-                              borderRadius: BorderRadius.circular(10),
+                              color: hasReacted
+                                  ? AppColors.primary.withValues(alpha: 0.12)
+                                  : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isMe
-                                    ? Colors.white.withValues(alpha: 0.3)
-                                    : const Color(0xFFE5E7EB),
+                                color: hasReacted
+                                    ? AppColors.primary.withValues(alpha: 0.6)
+                                    : const Color(0xFFE2E8F0),
+                                width: 1,
                               ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.assignment_outlined,
-                                  size: 18,
-                                  color: isMe
-                                      ? Colors.white
-                                      : AppColors.primary,
+                                Text(
+                                  reaction.emoji,
+                                  style: const TextStyle(fontSize: 12),
                                 ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        message.taskTitle ?? 'Linked Task',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isMe
-                                              ? Colors.white
-                                              : AppColors.textPrimary,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (message.taskStatus != null)
-                                        Text(
-                                          'Status: ${message.taskStatus}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isMe
-                                                ? Colors.white.withValues(alpha: 0.8)
-                                                : AppColors.textSecondary,
-                                          ),
-                                        ),
-                                    ],
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${reaction.count}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: hasReacted
+                                        ? AppColors.primary
+                                        : AppColors.textSecondary,
                                   ),
-                                ),
-                                const SizedBox(width: 6),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 16,
-                                  color: isMe
-                                      ? Colors.white
-                                      : AppColors.textSecondary,
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _formatTime(message.createdAt),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isMe
-                                  ? Colors.white.withValues(alpha: 0.7)
-                                  : AppColors.textSecondary.withValues(alpha: 0.6),
-                            ),
+                        );
+                      }),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () =>
+                            _showReactionPicker(context, ref, currentUserId),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
-                          if (isMe) ...[
-                            const SizedBox(width: 4),
-                            _buildStatusTicks(),
-                          ],
-                        ],
+                          child: const Icon(
+                            Icons.add_reaction_outlined,
+                            size: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
+                ],
               ],
             ),
           ),

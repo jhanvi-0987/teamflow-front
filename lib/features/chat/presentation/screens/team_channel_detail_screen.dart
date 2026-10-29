@@ -19,7 +19,7 @@ class TeamChannelDetailScreen extends ConsumerStatefulWidget {
 
 class _TeamChannelDetailScreenState extends ConsumerState<TeamChannelDetailScreen> {
   bool _notificationsMuted = false;
-  String _searchQuery = '';
+  final String _searchQuery = '';
 
   String _formatDate(dynamic date) {
     if (date == null) return 'N/A';
@@ -349,7 +349,7 @@ class _TeamChannelDetailScreenState extends ConsumerState<TeamChannelDetailScree
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: filteredMembers.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 64),
+                      separatorBuilder: (_, _) => const Divider(height: 1, indent: 64),
                       itemBuilder: (ctx, i) {
                         final m = filteredMembers[i];
                         final mName = m['name']?.toString() ?? 'Member';

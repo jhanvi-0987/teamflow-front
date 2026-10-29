@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'reaction_model.dart';
 
 class MessageModel extends Equatable {
   final String id;
@@ -14,6 +15,7 @@ class MessageModel extends Equatable {
   final String status; // 'sent' | 'delivered' | 'read'
   final DateTime? deliveredAt;
   final DateTime? readAt;
+  final List<ReactionGroupModel> reactions;
   final DateTime createdAt;
 
   const MessageModel({
@@ -30,10 +32,12 @@ class MessageModel extends Equatable {
     this.status = 'sent',
     this.deliveredAt,
     this.readAt,
+    this.reactions = const [],
     required this.createdAt,
   });
 
   bool get hasLinkedTask => taskId != null && taskId!.isNotEmpty;
+  bool get hasReactions => reactions.isNotEmpty;
 
   MessageModel copyWith({
     String? id,
@@ -49,6 +53,7 @@ class MessageModel extends Equatable {
     String? status,
     DateTime? deliveredAt,
     DateTime? readAt,
+    List<ReactionGroupModel>? reactions,
     DateTime? createdAt,
   }) {
     return MessageModel(
@@ -65,6 +70,7 @@ class MessageModel extends Equatable {
       status: status ?? this.status,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
+      reactions: reactions ?? this.reactions,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -72,6 +78,7 @@ class MessageModel extends Equatable {
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     final sender = json['sender'] as Map<String, dynamic>?;
     final task = json['task'] as Map<String, dynamic>?;
+    final reactionsList = json['reactions'] as List<dynamic>?;
 
     return MessageModel(
       id: json['id'] as String,
@@ -91,6 +98,11 @@ class MessageModel extends Equatable {
       readAt: json['readAt'] != null
           ? DateTime.tryParse(json['readAt'] as String)
           : null,
+      reactions: reactionsList != null
+          ? reactionsList
+              .map((e) => ReactionGroupModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : const [],
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
@@ -129,6 +141,7 @@ class MessageModel extends Equatable {
         status,
         deliveredAt,
         readAt,
+        reactions,
         createdAt,
       ];
 }
