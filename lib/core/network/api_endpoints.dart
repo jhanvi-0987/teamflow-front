@@ -92,6 +92,12 @@ class ApiEndpoints {
       '/channels/$channelId';
   static String messageReactions(String channelId, String messageId) =>
       '/channels/$channelId/messages/$messageId/reactions';
+  static String message(String channelId, String messageId) =>
+      '/channels/$channelId/messages/$messageId';
+  static String messagePin(String channelId, String messageId) =>
+      '/channels/$channelId/messages/$messageId/pin';
+  static String messageForward(String channelId, String messageId) =>
+      '/channels/$channelId/messages/$messageId/forward';
 
   // Notification endpoints
   static const String notifications = '/notifications';

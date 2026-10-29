@@ -41,11 +41,13 @@ class ChatRepositoryImpl implements ChatRepository {
     String channelId, {
     required String content,
     String? taskId,
+    String? replyToId,
   }) =>
       _remoteDataSource.sendMessage(
         channelId,
         content: content,
         taskId: taskId,
+        replyToId: replyToId,
       );
 
   @override
@@ -63,4 +65,23 @@ class ChatRepositoryImpl implements ChatRepository {
     String emoji,
   ) =>
       _remoteDataSource.toggleReaction(channelId, messageId, emoji);
+
+  @override
+  Future<void> deleteMessage(String channelId, String messageId) =>
+      _remoteDataSource.deleteMessage(channelId, messageId);
+
+  @override
+  Future<Map<String, dynamic>> togglePinMessage(
+    String channelId,
+    String messageId,
+  ) =>
+      _remoteDataSource.togglePinMessage(channelId, messageId);
+
+  @override
+  Future<MessageModel> forwardMessage(
+    String channelId,
+    String messageId,
+    String targetChannelId,
+  ) =>
+      _remoteDataSource.forwardMessage(channelId, messageId, targetChannelId);
 }

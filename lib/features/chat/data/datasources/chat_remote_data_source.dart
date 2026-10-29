@@ -23,6 +23,7 @@ abstract class ChatRemoteDataSource {
     String channelId, {
     required String content,
     String? taskId,
+    String? replyToId,
   });
 
   Future<void> markAsRead(String channelId);
@@ -33,6 +34,16 @@ abstract class ChatRemoteDataSource {
     String channelId,
     String messageId,
     String emoji,
+  );
+
+  Future<void> deleteMessage(String channelId, String messageId);
+
+  Future<Map<String, dynamic>> togglePinMessage(String channelId, String messageId);
+
+  Future<MessageModel> forwardMessage(
+    String channelId,
+    String messageId,
+    String targetChannelId,
   );
 }
 
@@ -111,6 +122,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     String channelId, {
     required String content,
     String? taskId,
+    String? replyToId,
   }) async {
     try {
       final response = await dio.post(
@@ -118,6 +130,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         data: {
           'content': content.trim(),
           if (taskId != null && taskId.isNotEmpty) 'taskId': taskId,
+          if (replyToId != null && replyToId.isNotEmpty) 'replyToId': replyToId,
         },
       );
       return MessageModel.fromJson(response.data as Map<String, dynamic>);
@@ -161,6 +174,47 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       return list
           .map((item) => ReactionGroupModel.fromJson(item as Map<String, dynamic>))
           .toList();
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteMessage(String channelId, String messageId) async {
+    try {
+      await dio.delete(ApiEndpoints.message(channelId, messageId));
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> togglePinMessage(
+    String channelId,
+    String messageId,
+  ) async {
+    try {
+      final response = await dio.patch(
+        ApiEndpoints.messagePin(channelId, messageId),
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<MessageModel> forwardMessage(
+    String channelId,
+    String messageId,
+    String targetChannelId,
+  ) async {
+    try {
+      final response = await dio.post(
+        ApiEndpoints.messageForward(channelId, messageId),
+        data: {'targetChannelId': targetChannelId},
+      );
+      return MessageModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw _handleError(e);
     }

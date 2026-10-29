@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/realtime/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -30,10 +31,12 @@ class ChannelChatScreen extends ConsumerStatefulWidget {
 class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   Timer? _typingDebounce;
   bool _isTyping = false;
   String? _selectedTaskId;
   String? _selectedTaskTitle;
+  MessageModel? _replyingToMessage;
   late final StateController<String?> _activeChannelNotifier;
   late final SocketService _socketService;
 
@@ -58,6 +61,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
     _typingDebounce?.cancel();
     _textController.dispose();
     _scrollController.dispose();
+    _focusNode.dispose();
     final activeNotifier = _activeChannelNotifier;
     final channelId = widget.channel.id;
     _socketService.leaveChannel(channelId);
@@ -110,11 +114,13 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
 
     final content = text.isNotEmpty ? text : 'Referenced a task';
     final taskId = _selectedTaskId;
+    final replyToId = _replyingToMessage?.id;
 
     _textController.clear();
     setState(() {
       _selectedTaskId = null;
       _selectedTaskTitle = null;
+      _replyingToMessage = null;
     });
 
     if (_isTyping) {
@@ -126,11 +132,132 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
 
     final success = await ref
         .read(channelMessagesProvider(widget.channel.id).notifier)
-        .sendMessage(content, taskId: taskId);
+        .sendMessage(content, taskId: taskId, replyToId: replyToId);
 
     if (success) {
       _scrollToBottom();
     }
+  }
+
+  void _showForwardDialog(BuildContext context, MessageModel message) {
+    final messenger = ScaffoldMessenger.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _ForwardChannelPickerSheet(
+        workspaceId: widget.channel.workspaceId,
+        currentChannelId: widget.channel.id,
+        onChannelSelected: (targetChannel) async {
+          Navigator.of(ctx).pop();
+          final success = await ref
+              .read(channelMessagesProvider(widget.channel.id).notifier)
+              .forwardMessage(message.id, targetChannel.id);
+          if (mounted) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  success
+                      ? 'Forwarded to ${targetChannel.isDM ? targetChannel.name : '#${targetChannel.name}'}'
+                      : 'Failed to forward message',
+                ),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  void _showPinnedMessagesSheet(
+      BuildContext context, List<MessageModel> pinnedMessages) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                const Icon(Icons.push_pin_rounded,
+                    color: Color(0xFFD97706), size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  'Pinned Messages (${pinnedMessages.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.separated(
+                itemCount: pinnedMessages.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (ctx, i) {
+                  final msg = pinnedMessages[i];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          msg.senderName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          tooltip: 'Unpin message',
+                          onPressed: () {
+                            ref
+                                .read(channelMessagesProvider(widget.channel.id)
+                                    .notifier)
+                                .togglePinMessage(msg.id);
+                            Navigator.of(ctx).pop();
+                          },
+                        ),
+                      ],
+                    ),
+                    subtitle: Text(
+                      msg.content,
+                      style: const TextStyle(fontSize: 13),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openDetailsScreen(BuildContext context) {
@@ -171,6 +298,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
     final messagesAsync = ref.watch(channelMessagesProvider(widget.channel.id));
     final typingUser = ref.watch(channelTypingProvider(widget.channel.id)).value;
     final currentUser = ref.watch(authControllerProvider).user;
+    final pinnedMessages = ref.watch(channelPinnedMessagesProvider(widget.channel.id));
 
     // Auto-scroll to bottom only when new incoming messages arrive
     ref.listen(channelMessagesProvider(widget.channel.id), (prev, next) {
@@ -274,6 +402,44 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
       ),
       body: Column(
         children: [
+          // Pinned Messages Banner
+          if (pinnedMessages.isNotEmpty)
+            InkWell(
+              onTap: () => _showPinnedMessagesSheet(context, pinnedMessages),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  border: Border(
+                    bottom: BorderSide(
+                        color: const Color(0xFFFDE68A).withValues(alpha: 0.8)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.push_pin_rounded,
+                        size: 16, color: Color(0xFFD97706)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${pinnedMessages.length} Pinned ${pinnedMessages.length == 1 ? 'Message' : 'Messages'}: ${pinnedMessages.last.content}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF92400E),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded,
+                        size: 18, color: Color(0xFF92400E)),
+                  ],
+                ),
+              ),
+            ),
+
           // Message List
           Expanded(
             child: messagesAsync.when(
@@ -366,9 +532,16 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
 
                     return _MessageBubble(
                       key: ValueKey(
-                          '${msg.id}_${msg.status}_${msg.reactions.fold<int>(0, (acc, r) => acc + r.count)}_${msg.readAt?.millisecondsSinceEpoch}'),
+                          '${msg.id}_${msg.status}_${msg.isPinned}_${msg.reactions.fold<int>(0, (acc, r) => acc + r.count)}_${msg.readAt?.millisecondsSinceEpoch}'),
                       message: msg,
                       isMe: isMe,
+                      onReply: (m) {
+                        setState(() {
+                          _replyingToMessage = m;
+                        });
+                        _focusNode.requestFocus();
+                      },
+                      onForward: (m) => _showForwardDialog(context, m),
                     );
                   },
                 );
@@ -442,6 +615,57 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
               ),
             ),
 
+          // Quoted Reply Preview Bar
+          if (_replyingToMessage != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+                border: const Border(
+                  left: BorderSide(color: AppColors.primary, width: 4),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.reply_rounded,
+                      size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Replying to ${_replyingToMessage!.senderName}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        Text(
+                          _replyingToMessage!.content,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _replyingToMessage = null),
+                    child:
+                        const Icon(Icons.close, size: 16, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+
           // Bottom Input Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -476,6 +700,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
                       ),
                       child: TextField(
                         controller: _textController,
+                        focusNode: _focusNode,
                         onChanged: _onTextChanged,
                         maxLines: 4,
                         minLines: 1,
@@ -522,11 +747,15 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
 class _MessageBubble extends ConsumerWidget {
   final MessageModel message;
   final bool isMe;
+  final ValueChanged<MessageModel>? onReply;
+  final ValueChanged<MessageModel>? onForward;
 
   const _MessageBubble({
     super.key,
     required this.message,
     required this.isMe,
+    this.onReply,
+    this.onForward,
   });
 
   String _formatTime(DateTime dt) {
@@ -536,15 +765,20 @@ class _MessageBubble extends ConsumerWidget {
     return '$hour:$minute';
   }
 
-  void _showReactionPicker(
-      BuildContext context, WidgetRef ref, String? currentUserId) {
+  void _showMessageActionSheet(
+    BuildContext context,
+    WidgetRef ref,
+    String? currentUserId,
+  ) {
     const emojis = ['👍', '❤️', '🎉', '🚀', '👀', '🔥'];
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -568,15 +802,7 @@ class _MessageBubble extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const Text(
-              'Add Reaction',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 12),
+            // Quick Emojis
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: emojis.map((emoji) {
@@ -615,6 +841,129 @@ class _MessageBubble extends ConsumerWidget {
                 );
               }).toList(),
             ),
+            const Divider(height: 24),
+
+            // 1. Reply
+            ListTile(
+              dense: true,
+              leading:
+                  const Icon(Icons.reply_rounded, color: AppColors.primary),
+              title: const Text('Reply',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                onReply?.call(message);
+              },
+            ),
+
+            // 2. Copy Text
+            ListTile(
+              dense: true,
+              leading:
+                  const Icon(Icons.copy_rounded, color: AppColors.textPrimary),
+              title: const Text('Copy Text',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                Clipboard.setData(ClipboardData(text: message.content));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Message copied to clipboard'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+
+            // 3. Pin / Unpin
+            ListTile(
+              dense: true,
+              leading: Icon(
+                message.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                color: const Color(0xFFD97706),
+              ),
+              title: Text(
+                message.isPinned ? 'Unpin Message' : 'Pin Message',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                ref
+                    .read(channelMessagesProvider(message.channelId).notifier)
+                    .togglePinMessage(message.id);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      message.isPinned
+                          ? 'Message unpinned'
+                          : 'Message pinned to channel',
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+
+            // 4. Forward
+            ListTile(
+              dense: true,
+              leading:
+                  const Icon(Icons.forward_rounded, color: Color(0xFF2563EB)),
+              title: const Text('Forward',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                onForward?.call(message);
+              },
+            ),
+
+            // 5. Delete (if author)
+            if (isMe)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.delete_outline_rounded,
+                    color: AppColors.error),
+                title: const Text(
+                  'Delete Message',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: AppColors.error),
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  showDialog(
+                    context: context,
+                    builder: (dCtx) => AlertDialog(
+                      title: const Text('Delete Message'),
+                      content: const Text(
+                        'Are you sure you want to delete this message? This action cannot be undone.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(dCtx).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.of(dCtx).pop();
+                            ref
+                                .read(
+                                    channelMessagesProvider(message.channelId)
+                                        .notifier)
+                                .deleteMessage(message.id);
+                          },
+                          child: const Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),
@@ -624,8 +973,10 @@ class _MessageBubble extends ConsumerWidget {
   Widget _buildStatusTicks() {
     if (!isMe) return const SizedBox.shrink();
 
-    final isRead = message.status.toLowerCase() == 'read' || message.readAt != null;
-    final isDelivered = message.status.toLowerCase() == 'delivered' || message.deliveredAt != null;
+    final isRead =
+        message.status.toLowerCase() == 'read' || message.readAt != null;
+    final isDelivered = message.status.toLowerCase() == 'delivered' ||
+        message.deliveredAt != null;
 
     if (isRead) {
       // Double tick mark with blue color when recipient has read the message
@@ -698,7 +1049,7 @@ class _MessageBubble extends ConsumerWidget {
                   ),
                 GestureDetector(
                   onLongPress: () =>
-                      _showReactionPicker(context, ref, currentUserId),
+                      _showMessageActionSheet(context, ref, currentUserId),
                   child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -728,6 +1079,96 @@ class _MessageBubble extends ConsumerWidget {
                           ? CrossAxisAlignment.end
                           : CrossAxisAlignment.start,
                       children: [
+                        // Quoted Reply Preview inside bubble
+                        if (message.isReply && message.replyTo != null) ...[
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isMe
+                                  ? Colors.white.withValues(alpha: 0.18)
+                                  : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border(
+                                left: BorderSide(
+                                  color:
+                                      isMe ? Colors.white : AppColors.primary,
+                                  width: 3.5,
+                                ),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.reply_rounded,
+                                      size: 13,
+                                      color: isMe
+                                          ? Colors.white
+                                          : AppColors.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      message.replyTo!.senderName,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: isMe
+                                            ? Colors.white
+                                            : AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  message.replyTo!.content,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isMe
+                                        ? Colors.white.withValues(alpha: 0.85)
+                                        : AppColors.textSecondary,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // Forwarded indicator
+                        if (message.isForwarded) ...[
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.forward_rounded,
+                                size: 12,
+                                color: isMe
+                                    ? Colors.white.withValues(alpha: 0.8)
+                                    : AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Forwarded',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                  color: isMe
+                                      ? Colors.white.withValues(alpha: 0.8)
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                        ],
+
                         // Text content
                         Text(
                           message.content,
@@ -826,6 +1267,16 @@ class _MessageBubble extends ConsumerWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            if (message.isPinned) ...[
+                              Icon(
+                                Icons.push_pin_rounded,
+                                size: 12,
+                                color: isMe
+                                    ? Colors.amber.shade200
+                                    : const Color(0xFFD97706),
+                              ),
+                              const SizedBox(width: 4),
+                            ],
                             Text(
                               _formatTime(message.createdAt),
                               style: TextStyle(
@@ -907,7 +1358,7 @@ class _MessageBubble extends ConsumerWidget {
                       InkWell(
                         borderRadius: BorderRadius.circular(12),
                         onTap: () =>
-                            _showReactionPicker(context, ref, currentUserId),
+                            _showMessageActionSheet(context, ref, currentUserId),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 3),
@@ -927,6 +1378,114 @@ class _MessageBubble extends ConsumerWidget {
                   ),
                 ],
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ForwardChannelPickerSheet extends ConsumerWidget {
+  final String workspaceId;
+  final String currentChannelId;
+  final ValueChanged<ChannelModel> onChannelSelected;
+
+  const _ForwardChannelPickerSheet({
+    required this.workspaceId,
+    required this.currentChannelId,
+    required this.onChannelSelected,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final channelsAsync = ref.watch(workspaceChannelsProvider(workspaceId));
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.55,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const Text(
+            'Forward Message To',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: channelsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) =>
+                  Center(child: Text('Failed to load channels: $err')),
+              data: (channels) {
+                final targetChannels =
+                    channels.where((c) => c.id != currentChannelId).toList();
+                if (targetChannels.isEmpty) {
+                  return const Center(
+                    child:
+                        Text('No other channels available in this workspace'),
+                  );
+                }
+                return ListView.separated(
+                  itemCount: targetChannels.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (ctx, i) {
+                    final ch = targetChannels[i];
+                    return ListTile(
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: ch.isDM
+                              ? const Color(0xFFEEF2FF)
+                              : AppColors.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            ch.isDM
+                                ? Icons.person_outline_rounded
+                                : Icons.tag_rounded,
+                            size: 18,
+                            color: ch.isDM
+                                ? const Color(0xFF4F46E5)
+                                : AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        ch.isDM ? ch.name : '#${ch.name}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: ch.topic?.isNotEmpty == true
+                          ? Text(ch.topic!, maxLines: 1)
+                          : null,
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                          size: 14, color: Colors.grey),
+                      onTap: () => onChannelSelected(ch),
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],

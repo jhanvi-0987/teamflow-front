@@ -39,6 +39,8 @@ class ChannelMessagesNotifier
   StreamSubscription? _deliveredSub;
   StreamSubscription? _readSub;
   StreamSubscription? _reactionSub;
+  StreamSubscription? _deletedSub;
+  StreamSubscription? _pinnedSub;
 
   ChannelMessagesNotifier({
     required ChatRepository repository,
@@ -144,6 +146,43 @@ class ChannelMessagesNotifier
         }
       }
     });
+
+    _deletedSub = _socketService.onChatMessageDeleted.listen((data) {
+      if (!mounted) return;
+      if (state.value == null) return;
+      if (data['channelId'] == _channelId) {
+        final messageId = data['messageId'] as String?;
+        if (messageId != null) {
+          final current = state.value!;
+          state = AsyncValue.data(
+              current.where((m) => m.id != messageId).toList());
+        }
+      }
+    });
+
+    _pinnedSub = _socketService.onChatMessagePinned.listen((data) {
+      if (!mounted) return;
+      if (state.value == null) return;
+      if (data['channelId'] == _channelId) {
+        final messageId = data['messageId'] as String?;
+        final isPinned = data['isPinned'] as bool? ?? false;
+        final pinnedBy = data['pinnedBy'] as Map<String, dynamic>?;
+        if (messageId != null) {
+          final current = state.value!;
+          state = AsyncValue.data(current.map((m) {
+            if (m.id == messageId) {
+              return m.copyWith(
+                isPinned: isPinned,
+                pinnedAt: isPinned ? DateTime.now() : null,
+                pinnedById: pinnedBy?['id'] as String?,
+                pinnedByName: pinnedBy?['name'] as String?,
+              );
+            }
+            return m;
+          }).toList());
+        }
+      }
+    });
   }
 
   Future<void> loadMessages() async {
@@ -158,13 +197,18 @@ class ChannelMessagesNotifier
     }
   }
 
-  Future<bool> sendMessage(String content, {String? taskId}) async {
+  Future<bool> sendMessage(
+    String content, {
+    String? taskId,
+    String? replyToId,
+  }) async {
     if (content.trim().isEmpty) return false;
     try {
       final created = await _repository.sendMessage(
         _channelId,
         content: content,
         taskId: taskId,
+        replyToId: replyToId,
       );
       if (!mounted) return true;
       final current = state.value ?? [];
@@ -204,12 +248,64 @@ class ChannelMessagesNotifier
     }
   }
 
+  Future<bool> deleteMessage(String messageId) async {
+    try {
+      await _repository.deleteMessage(_channelId, messageId);
+      if (!mounted) return true;
+      if (state.value != null) {
+        final current = state.value!;
+        state = AsyncValue.data(
+            current.where((m) => m.id != messageId).toList());
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> togglePinMessage(String messageId) async {
+    try {
+      final res = await _repository.togglePinMessage(_channelId, messageId);
+      if (!mounted) return true;
+      final isPinned = res['isPinned'] as bool? ?? false;
+      final pinnedBy = res['pinnedBy'] as Map<String, dynamic>?;
+      if (state.value != null) {
+        final current = state.value!;
+        state = AsyncValue.data(current.map((m) {
+          if (m.id == messageId) {
+            return m.copyWith(
+              isPinned: isPinned,
+              pinnedAt: isPinned ? DateTime.now() : null,
+              pinnedById: pinnedBy?['id'] as String?,
+              pinnedByName: pinnedBy?['name'] as String?,
+            );
+          }
+          return m;
+        }).toList());
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> forwardMessage(String messageId, String targetChannelId) async {
+    try {
+      await _repository.forwardMessage(_channelId, messageId, targetChannelId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   void dispose() {
     _messageSub?.cancel();
     _deliveredSub?.cancel();
     _readSub?.cancel();
     _reactionSub?.cancel();
+    _deletedSub?.cancel();
+    _pinnedSub?.cancel();
     _socketService.leaveChannel(_channelId);
     super.dispose();
   }
@@ -242,6 +338,13 @@ final channelTypingProvider =
     }
     return null;
   });
+});
+
+/// Provider for pinned messages in a channel
+final channelPinnedMessagesProvider =
+    Provider.family<List<MessageModel>, String>((ref, channelId) {
+  final messages = ref.watch(channelMessagesProvider(channelId)).value ?? [];
+  return messages.where((m) => m.isPinned).toList();
 });
 
 /// Provider for fetching full channel/DM details including members and roles

@@ -20,6 +20,7 @@ abstract class ChatRepository {
     String channelId, {
     required String content,
     String? taskId,
+    String? replyToId,
   });
 
   Future<void> markAsRead(String channelId);
@@ -30,5 +31,15 @@ abstract class ChatRepository {
     String channelId,
     String messageId,
     String emoji,
+  );
+
+  Future<void> deleteMessage(String channelId, String messageId);
+
+  Future<Map<String, dynamic>> togglePinMessage(String channelId, String messageId);
+
+  Future<MessageModel> forwardMessage(
+    String channelId,
+    String messageId,
+    String targetChannelId,
   );
 }

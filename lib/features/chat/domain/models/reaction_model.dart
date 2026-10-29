@@ -40,3 +40,4 @@ class ReactionGroupModel extends Equatable {
   @override
   List<Object?> get props => [emoji, count, userIds, userNames];
 }
+
