@@ -64,6 +64,19 @@ class ApiEndpoints {
   static String taskComments(String taskId) => '/tasks/$taskId/comments';
   static String comment(String id) => '/comments/$id';
 
+  // Subtasks endpoints
+  static String taskSubtasks(String taskId) => '/tasks/$taskId/subtasks';
+  static String taskSubtask(String taskId, String subtaskId) =>
+      '/tasks/$taskId/subtasks/$subtaskId';
+
+  // Labels endpoints
+  static String workspaceLabels(String workspaceId) =>
+      '/workspaces/$workspaceId/labels';
+  static String workspaceLabel(String workspaceId, String labelId) =>
+      '/workspaces/$workspaceId/labels/$labelId';
+  static String taskLabel(String taskId, String labelId) =>
+      '/tasks/$taskId/labels/$labelId';
+
   // Chat endpoints
   static String workspaceChannels(String workspaceId) =>
       '/workspaces/$workspaceId/channels';

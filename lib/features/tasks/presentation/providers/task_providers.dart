@@ -4,6 +4,8 @@ import '../../data/datasources/tasks_remote_data_source.dart';
 import '../../data/repositories/tasks_repository_impl.dart';
 import '../../domain/models/task_model.dart';
 import '../../domain/models/comment_model.dart';
+import '../../domain/models/subtask_model.dart';
+import '../../domain/models/label_model.dart';
 import '../../domain/repositories/tasks_repository.dart';
 
 final tasksRemoteDataSourceProvider = Provider<TasksRemoteDataSource>((ref) {
@@ -39,5 +41,12 @@ final userSearchProvider =
   if (query.trim().isEmpty) return [];
   final repo = ref.watch(tasksRepositoryProvider);
   return repo.searchUsers(query);
+});
+
+final workspaceLabelsProvider =
+    FutureProvider.family<List<LabelModel>, String>((ref, workspaceId) async {
+  if (workspaceId.isEmpty) return [];
+  final repo = ref.watch(tasksRepositoryProvider);
+  return repo.listWorkspaceLabels(workspaceId);
 });
 

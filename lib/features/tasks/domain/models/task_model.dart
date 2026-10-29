@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import 'subtask_model.dart';
+import 'label_model.dart';
 
 enum TaskStatus {
   todo('TODO', 'To Do', Icons.radio_button_unchecked),
@@ -97,6 +99,8 @@ class TaskModel extends Equatable {
   final int version;
   final UserSummary? assignee;
   final UserSummary? reporter;
+  final List<SubtaskModel> subtasks;
+  final List<LabelModel> labels;
   final int commentCount;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -113,10 +117,18 @@ class TaskModel extends Equatable {
     this.version = 1,
     this.assignee,
     this.reporter,
+    this.subtasks = const [],
+    this.labels = const [],
     this.commentCount = 0,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  int get totalSubtasks => subtasks.length;
+  int get completedSubtasks => subtasks.where((s) => s.isCompleted).length;
+  double get subtaskProgress => totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) : 0.0;
+  bool get hasSubtasks => subtasks.isNotEmpty;
+  bool get hasLabels => labels.isNotEmpty;
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {
     return TaskModel(
@@ -135,6 +147,16 @@ class TaskModel extends Equatable {
       reporter: json['reporter'] != null
           ? UserSummary.fromJson(json['reporter'] as Map<String, dynamic>)
           : null,
+      subtasks: json['subtasks'] != null
+          ? (json['subtasks'] as List<dynamic>)
+              .map((e) => SubtaskModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : const [],
+      labels: json['labels'] != null
+          ? (json['labels'] as List<dynamic>)
+              .map((e) => LabelModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : const [],
       commentCount: (json['commentCount'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -153,6 +175,8 @@ class TaskModel extends Equatable {
     int? version,
     UserSummary? assignee,
     UserSummary? reporter,
+    List<SubtaskModel>? subtasks,
+    List<LabelModel>? labels,
     int? commentCount,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -169,6 +193,8 @@ class TaskModel extends Equatable {
       version: version ?? this.version,
       assignee: assignee ?? this.assignee,
       reporter: reporter ?? this.reporter,
+      subtasks: subtasks ?? this.subtasks,
+      labels: labels ?? this.labels,
       commentCount: commentCount ?? this.commentCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -188,6 +214,8 @@ class TaskModel extends Equatable {
         version,
         assignee,
         reporter,
+        subtasks,
+        labels,
         commentCount,
         createdAt,
         updatedAt,

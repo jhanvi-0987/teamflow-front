@@ -9,6 +9,8 @@ import '../../domain/models/comment_model.dart';
 import '../providers/task_providers.dart';
 import '../../../workspaces/presentation/providers/workspace_providers.dart';
 import '../widgets/assignee_picker_sheet.dart';
+import '../widgets/label_picker_sheet.dart';
+import '../widgets/subtask_checklist_widget.dart';
 
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
@@ -51,6 +53,31 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           }
         }),
         socketService.onTaskStatusChanged.listen((event) {
+          if (event['taskId'] == widget.taskId && mounted) {
+            ref.invalidate(taskDetailProvider(widget.taskId));
+          }
+        }),
+        socketService.onSubtaskCreated.listen((event) {
+          if (event['taskId'] == widget.taskId && mounted) {
+            ref.invalidate(taskDetailProvider(widget.taskId));
+          }
+        }),
+        socketService.onSubtaskUpdated.listen((event) {
+          if (event['taskId'] == widget.taskId && mounted) {
+            ref.invalidate(taskDetailProvider(widget.taskId));
+          }
+        }),
+        socketService.onSubtaskDeleted.listen((event) {
+          if (event['taskId'] == widget.taskId && mounted) {
+            ref.invalidate(taskDetailProvider(widget.taskId));
+          }
+        }),
+        socketService.onTaskLabelAdded.listen((event) {
+          if (event['taskId'] == widget.taskId && mounted) {
+            ref.invalidate(taskDetailProvider(widget.taskId));
+          }
+        }),
+        socketService.onTaskLabelRemoved.listen((event) {
           if (event['taskId'] == widget.taskId && mounted) {
             ref.invalidate(taskDetailProvider(widget.taskId));
           }
@@ -655,6 +682,178 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 24),
+
+                    // Labels Section
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildSectionHeader(
+                          icon: Icons.label_outline_rounded,
+                          title: 'Labels & Tags (${task.labels.length})',
+                        ),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () {
+                            final ws = ref.read(currentWorkspaceProvider);
+                            if (ws != null) {
+                              LabelPickerSheet.show(
+                                context,
+                                task: task,
+                                workspaceId: ws.id,
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.add_rounded,
+                                    size: 14, color: AppColors.primary),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Manage',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    if (task.labels.isEmpty)
+                      InkWell(
+                        onTap: () {
+                          final ws = ref.read(currentWorkspaceProvider);
+                          if (ws != null) {
+                            LabelPickerSheet.show(
+                              context,
+                              task: task,
+                              workspaceId: ws.id,
+                            );
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.border.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.add_circle_outline_rounded,
+                                  size: 16, color: AppColors.textMuted),
+                              SizedBox(width: 8),
+                              Text(
+                                'Add labels (e.g. Bug, Frontend, High Impact)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ...task.labels.map((lbl) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: lbl.color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: lbl.color.withValues(alpha: 0.5),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: lbl.color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    lbl.name,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: lbl.color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                          InkWell(
+                            onTap: () {
+                              final ws = ref.read(currentWorkspaceProvider);
+                              if (ws != null) {
+                                LabelPickerSheet.show(
+                                  context,
+                                  task: task,
+                                  workspaceId: ws.id,
+                                );
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add_rounded,
+                                      size: 14, color: AppColors.textMuted),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Add',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 24),
+
+                    // Subtasks & Checklist Section
+                    SubtaskChecklistWidget(task: task),
                     const SizedBox(height: 26),
 
                     // Comments Header

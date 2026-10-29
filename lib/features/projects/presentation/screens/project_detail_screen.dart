@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/realtime/socket_service.dart';
 import '../../domain/models/project.dart';
 import '../../../tasks/domain/models/task_model.dart';
+import '../../../tasks/domain/models/label_model.dart';
 import '../../../tasks/presentation/providers/task_providers.dart';
 import '../../../tasks/presentation/widgets/kanban_card.dart';
 import '../../../tasks/presentation/widgets/create_task_dialog.dart';
@@ -28,6 +29,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   TaskStatus? _selectedStatusFilter;
+  String? _selectedLabelFilter;
   List<StreamSubscription> _socketSubscriptions = [];
   SocketService? _socketService;
 
@@ -67,6 +69,31 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
           if (event['projectId'] == widget.projectId && mounted) {
             ref.invalidate(projectTasksProvider(widget.projectId));
             ref.invalidate(projectDetailProvider(widget.projectId));
+          }
+        }),
+        socketService.onSubtaskCreated.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
+          }
+        }),
+        socketService.onSubtaskUpdated.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
+          }
+        }),
+        socketService.onSubtaskDeleted.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
+          }
+        }),
+        socketService.onTaskLabelAdded.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
+          }
+        }),
+        socketService.onTaskLabelRemoved.listen((event) {
+          if (event['projectId'] == widget.projectId && mounted) {
+            ref.invalidate(projectTasksProvider(widget.projectId));
           }
         }),
       ];
@@ -383,31 +410,90 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
   Widget _buildKanbanBoard(List<TaskModel> allTasks, Project? project) {
     const statuses = TaskStatus.values;
 
-    return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: () async {
-        ref.invalidate(projectTasksProvider(widget.projectId));
-        ref.invalidate(projectDetailProvider(widget.projectId));
-      },
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-        children: statuses.map((status) {
-          final columnTasks =
-              allTasks.where((t) => t.status == status).toList();
+    final uniqueLabels = <String, LabelModel>{};
+    for (final task in allTasks) {
+      for (final lbl in task.labels) {
+        uniqueLabels[lbl.id] = lbl;
+      }
+    }
 
-          return Container(
-            width: 300,
-            margin: const EdgeInsets.symmetric(horizontal: 6),
+    final filteredTasks = _selectedLabelFilter == null
+        ? allTasks
+        : allTasks
+            .where((t) => t.labels.any((l) => l.id == _selectedLabelFilter))
+            .toList();
+
+    return Column(
+      children: [
+        if (uniqueLabels.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.surface.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+              color: AppColors.surface,
+              border: Border(
+                bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.3)),
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Column Header
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  const Icon(Icons.label_outline_rounded,
+                      size: 14, color: AppColors.textMuted),
+                  const SizedBox(width: 8),
+                  _buildLabelFilterChip(
+                    label: 'All Labels',
+                    isSelected: _selectedLabelFilter == null,
+                    color: AppColors.primary,
+                    onTap: () => setState(() => _selectedLabelFilter = null),
+                  ),
+                  const SizedBox(width: 6),
+                  ...uniqueLabels.values.map((lbl) {
+                    final isSelected = _selectedLabelFilter == lbl.id;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: _buildLabelFilterChip(
+                        label: lbl.name,
+                        isSelected: isSelected,
+                        color: lbl.color,
+                        onTap: () {
+                          setState(() {
+                            _selectedLabelFilter = isSelected ? null : lbl.id;
+                          });
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              ref.invalidate(projectTasksProvider(widget.projectId));
+              ref.invalidate(projectDetailProvider(widget.projectId));
+            },
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+              children: statuses.map((status) {
+                final columnTasks =
+                    filteredTasks.where((t) => t.status == status).toList();
+
+                return Container(
+                  width: 300,
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Column Header
                 Container(
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
@@ -556,12 +642,22 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
           );
         }).toList(),
       ),
-    );
-  }
+    ),
+  ),
+],
+);
+}
 
   // TASK LIST VIEW
   Widget _buildTaskList(List<TaskModel> allTasks, Project? project) {
-    // Filter by search query
+    final uniqueLabels = <String, LabelModel>{};
+    for (final task in allTasks) {
+      for (final lbl in task.labels) {
+        uniqueLabels[lbl.id] = lbl;
+      }
+    }
+
+    // Filter by search query, status, and label
     final query = _searchController.text.toLowerCase().trim();
     var filtered = allTasks.where((t) {
       final matchesSearch = query.isEmpty ||
@@ -570,7 +666,9 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
               t.description!.toLowerCase().contains(query));
       final matchesStatus =
           _selectedStatusFilter == null || t.status == _selectedStatusFilter;
-      return matchesSearch && matchesStatus;
+      final matchesLabel = _selectedLabelFilter == null ||
+          t.labels.any((l) => l.id == _selectedLabelFilter);
+      return matchesSearch && matchesStatus && matchesLabel;
     }).toList();
 
     return Column(
@@ -652,6 +750,46 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                   ],
                 ),
               ),
+
+              // Label Filter Chips
+              if (uniqueLabels.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.label_outline_rounded,
+                          size: 14, color: AppColors.textMuted),
+                      const SizedBox(width: 8),
+                      _buildLabelFilterChip(
+                        label: 'All Labels',
+                        isSelected: _selectedLabelFilter == null,
+                        color: AppColors.primary,
+                        onTap: () =>
+                            setState(() => _selectedLabelFilter = null),
+                      ),
+                      const SizedBox(width: 6),
+                      ...uniqueLabels.values.map((lbl) {
+                        final isSelected = _selectedLabelFilter == lbl.id;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _buildLabelFilterChip(
+                            label: lbl.name,
+                            isSelected: isSelected,
+                            color: lbl.color,
+                            onTap: () {
+                              setState(() {
+                                _selectedLabelFilter =
+                                    isSelected ? null : lbl.id;
+                              });
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -744,6 +882,51 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen>
                 color: isSelected ? Colors.white : AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
                 fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabelFilterChip({
+    required String label,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? color : color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: color,
+            width: isSelected ? 1.5 : 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : color,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
               ),
             ),
           ],

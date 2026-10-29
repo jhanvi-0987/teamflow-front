@@ -4,6 +4,8 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../domain/models/task_model.dart';
 import '../../domain/models/comment_model.dart';
+import '../../domain/models/subtask_model.dart';
+import '../../domain/models/label_model.dart';
 
 abstract class TasksRemoteDataSource {
   Future<TaskModel> createTask({
@@ -55,6 +57,24 @@ abstract class TasksRemoteDataSource {
 
   // User search for assignment
   Future<List<UserSummary>> searchUsers(String query);
+
+  // Subtasks
+  Future<SubtaskModel> createSubtask(String taskId, String title, {double? position});
+  Future<SubtaskModel> updateSubtask(
+    String taskId,
+    String subtaskId, {
+    String? title,
+    bool? isCompleted,
+    double? position,
+  });
+  Future<void> deleteSubtask(String taskId, String subtaskId);
+
+  // Labels
+  Future<List<LabelModel>> listWorkspaceLabels(String workspaceId);
+  Future<LabelModel> createWorkspaceLabel(String workspaceId, String name, String colorHex);
+  Future<void> deleteWorkspaceLabel(String workspaceId, String labelId);
+  Future<LabelModel> addLabelToTask(String taskId, String labelId);
+  Future<void> removeLabelFromTask(String taskId, String labelId);
 }
 
 
@@ -241,6 +261,123 @@ class TasksRemoteDataSourceImpl implements TasksRemoteDataSource {
       return list
           .map((item) => UserSummary.fromJson(item as Map<String, dynamic>))
           .toList();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  // --- SUBTASKS ---
+
+  @override
+  Future<SubtaskModel> createSubtask(
+    String taskId,
+    String title, {
+    double? position,
+  }) async {
+    try {
+      final response = await dio.post(
+        ApiEndpoints.taskSubtasks(taskId),
+        data: {
+          'title': title,
+          if (position != null) 'position': position,
+        },
+      );
+      return SubtaskModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<SubtaskModel> updateSubtask(
+    String taskId,
+    String subtaskId, {
+    String? title,
+    bool? isCompleted,
+    double? position,
+  }) async {
+    try {
+      final response = await dio.patch(
+        ApiEndpoints.taskSubtask(taskId, subtaskId),
+        data: {
+          if (title != null) 'title': title,
+          if (isCompleted != null) 'isCompleted': isCompleted,
+          if (position != null) 'position': position,
+        },
+      );
+      return SubtaskModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteSubtask(String taskId, String subtaskId) async {
+    try {
+      await dio.delete(ApiEndpoints.taskSubtask(taskId, subtaskId));
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  // --- LABELS ---
+
+  @override
+  Future<List<LabelModel>> listWorkspaceLabels(String workspaceId) async {
+    try {
+      final response = await dio.get(ApiEndpoints.workspaceLabels(workspaceId));
+      final list = response.data as List<dynamic>;
+      return list
+          .map((item) => LabelModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<LabelModel> createWorkspaceLabel(
+    String workspaceId,
+    String name,
+    String colorHex,
+  ) async {
+    try {
+      final response = await dio.post(
+        ApiEndpoints.workspaceLabels(workspaceId),
+        data: {
+          'name': name,
+          'color': colorHex,
+        },
+      );
+      return LabelModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> deleteWorkspaceLabel(String workspaceId, String labelId) async {
+    try {
+      await dio.delete(ApiEndpoints.workspaceLabel(workspaceId, labelId));
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<LabelModel> addLabelToTask(String taskId, String labelId) async {
+    try {
+      final response = await dio.post(ApiEndpoints.taskLabel(taskId, labelId));
+      return LabelModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  @override
+  Future<void> removeLabelFromTask(String taskId, String labelId) async {
+    try {
+      await dio.delete(ApiEndpoints.taskLabel(taskId, labelId));
     } on DioException catch (e) {
       throw _handleDioError(e);
     }

@@ -1,5 +1,7 @@
 import '../models/task_model.dart';
 import '../models/comment_model.dart';
+import '../models/subtask_model.dart';
+import '../models/label_model.dart';
 
 abstract class TasksRepository {
   Future<TaskModel> createTask({
@@ -51,5 +53,23 @@ abstract class TasksRepository {
 
   // User search
   Future<List<UserSummary>> searchUsers(String query);
+
+  // Subtasks
+  Future<SubtaskModel> createSubtask(String taskId, String title, {double? position});
+  Future<SubtaskModel> updateSubtask(
+    String taskId,
+    String subtaskId, {
+    String? title,
+    bool? isCompleted,
+    double? position,
+  });
+  Future<void> deleteSubtask(String taskId, String subtaskId);
+
+  // Labels
+  Future<List<LabelModel>> listWorkspaceLabels(String workspaceId);
+  Future<LabelModel> createWorkspaceLabel(String workspaceId, String name, String colorHex);
+  Future<void> deleteWorkspaceLabel(String workspaceId, String labelId);
+  Future<LabelModel> addLabelToTask(String taskId, String labelId);
+  Future<void> removeLabelFromTask(String taskId, String labelId);
 }
 

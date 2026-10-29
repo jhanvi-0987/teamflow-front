@@ -129,6 +129,39 @@ class KanbanCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
 
+                      // Labels row
+                      if (task.hasLabels) ...[
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: task.labels.map((lbl) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: lbl.color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: lbl.color.withValues(alpha: 0.35),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                lbl.name,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: lbl.color,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
                       // Title
                       Text(
                         task.title,
@@ -154,6 +187,25 @@ class KanbanCard extends StatelessWidget {
                             color: AppColors.textSecondary
                                 .withValues(alpha: 0.7),
                             height: 1.4,
+                          ),
+                        ),
+                      ],
+
+                      // Mini subtasks progress bar
+                      if (task.hasSubtasks) ...[
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: task.subtaskProgress,
+                            minHeight: 3,
+                            backgroundColor:
+                                AppColors.border.withValues(alpha: 0.25),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              task.completedSubtasks == task.totalSubtasks
+                                  ? AppColors.success
+                                  : AppColors.primary,
+                            ),
                           ),
                         ),
                       ],
@@ -226,6 +278,35 @@ class KanbanCard extends StatelessWidget {
                                     fontSize: 11,
                                     color: AppColors.textMuted
                                         .withValues(alpha: 0.6),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+
+                              // Subtasks checklist indicator
+                              if (task.hasSubtasks) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  task.completedSubtasks == task.totalSubtasks
+                                      ? Icons.task_alt_rounded
+                                      : Icons.checklist_rounded,
+                                  size: 13,
+                                  color: task.completedSubtasks ==
+                                          task.totalSubtasks
+                                      ? AppColors.success
+                                      : AppColors.textMuted
+                                          .withValues(alpha: 0.7),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${task.completedSubtasks}/${task.totalSubtasks}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: task.completedSubtasks ==
+                                            task.totalSubtasks
+                                        ? AppColors.success
+                                        : AppColors.textMuted
+                                            .withValues(alpha: 0.7),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),

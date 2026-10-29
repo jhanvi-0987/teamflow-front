@@ -21,6 +21,11 @@ class SocketService {
   final _taskStatusChangedController = StreamController<Map<String, dynamic>>.broadcast();
   final _taskDeletedController = StreamController<Map<String, dynamic>>.broadcast();
   final _commentCreatedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _subtaskCreatedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _subtaskUpdatedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _subtaskDeletedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _taskLabelAddedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _taskLabelRemovedController = StreamController<Map<String, dynamic>>.broadcast();
   final _securityRevokedController = StreamController<Map<String, dynamic>>.broadcast();
   final _chatMessageController = StreamController<Map<String, dynamic>>.broadcast();
   final _userTypingController = StreamController<Map<String, dynamic>>.broadcast();
@@ -35,6 +40,11 @@ class SocketService {
   Stream<Map<String, dynamic>> get onTaskStatusChanged => _taskStatusChangedController.stream;
   Stream<Map<String, dynamic>> get onTaskDeleted => _taskDeletedController.stream;
   Stream<Map<String, dynamic>> get onCommentCreated => _commentCreatedController.stream;
+  Stream<Map<String, dynamic>> get onSubtaskCreated => _subtaskCreatedController.stream;
+  Stream<Map<String, dynamic>> get onSubtaskUpdated => _subtaskUpdatedController.stream;
+  Stream<Map<String, dynamic>> get onSubtaskDeleted => _subtaskDeletedController.stream;
+  Stream<Map<String, dynamic>> get onTaskLabelAdded => _taskLabelAddedController.stream;
+  Stream<Map<String, dynamic>> get onTaskLabelRemoved => _taskLabelRemovedController.stream;
   Stream<Map<String, dynamic>> get onSecurityRevoked => _securityRevokedController.stream;
   Stream<Map<String, dynamic>> get onChatMessage => _chatMessageController.stream;
   Stream<Map<String, dynamic>> get onUserTyping => _userTypingController.stream;
@@ -134,6 +144,36 @@ class SocketService {
     _socket!.on('comment:created', (data) {
       if (data is Map) {
         _commentCreatedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('subtask:created', (data) {
+      if (data is Map) {
+        _subtaskCreatedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('subtask:updated', (data) {
+      if (data is Map) {
+        _subtaskUpdatedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('subtask:deleted', (data) {
+      if (data is Map) {
+        _subtaskDeletedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('task:label_added', (data) {
+      if (data is Map) {
+        _taskLabelAddedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('task:label_removed', (data) {
+      if (data is Map) {
+        _taskLabelRemovedController.add(Map<String, dynamic>.from(data));
       }
     });
 
@@ -251,6 +291,11 @@ class SocketService {
     _taskStatusChangedController.close();
     _taskDeletedController.close();
     _commentCreatedController.close();
+    _subtaskCreatedController.close();
+    _subtaskUpdatedController.close();
+    _subtaskDeletedController.close();
+    _taskLabelAddedController.close();
+    _taskLabelRemovedController.close();
     _securityRevokedController.close();
     _chatMessageController.close();
     _userTypingController.close();
