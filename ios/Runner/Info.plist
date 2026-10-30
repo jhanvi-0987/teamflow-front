@@ -71,5 +71,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>TeamFlow needs camera access for video calls with your team.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TeamFlow needs microphone access for voice and video calls with your team.</string>
 </dict>
 </plist>

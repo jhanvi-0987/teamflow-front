@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/realtime/socket_service.dart';
+import '../../../../core/webrtc/webrtc_service.dart';
 import '../../domain/models/call_session_model.dart';
 import '../../domain/repositories/chat_repository.dart';
 import 'chat_providers.dart';
@@ -110,23 +111,47 @@ class CallState extends Equatable {
 class CallNotifier extends StateNotifier<CallState> {
   final ChatRepository _repository;
   final SocketService _socketService;
+  final WebRTCService _webrtcService;
   StreamSubscription? _incomingSub;
   StreamSubscription? _acceptedSub;
   StreamSubscription? _rejectedSub;
   StreamSubscription? _endedSub;
+  StreamSubscription? _signalSub;
   Timer? _durationTimer;
   Timer? _autoResetTimer;
 
   CallNotifier({
     required ChatRepository repository,
     required SocketService socketService,
+    WebRTCService? webrtcService,
   })  : _repository = repository,
         _socketService = socketService,
+        _webrtcService = webrtcService ?? WebRTCService(),
         super(const CallState()) {
     _init();
   }
 
+  WebRTCService get webrtcService => _webrtcService;
+
   void _init() {
+    _webrtcService.onIceCandidateGenerated = (candidate) {
+      if (state.session != null) {
+        _socketService.sendCallSignal(
+          state.session!.id,
+          {
+            'type': 'candidate',
+            'candidate': {
+              'candidate': candidate.candidate,
+              'sdpMid': candidate.sdpMid,
+              'sdpMLineIndex': candidate.sdpMLineIndex,
+            },
+          },
+          targetUserId: state.remoteUserId,
+          channelId: state.channelId,
+        );
+      }
+    };
+
     _incomingSub = _socketService.onCallIncoming.listen((data) {
       if (!mounted) return;
       // If already in a call, reject with busy reason
@@ -154,33 +179,92 @@ class CallNotifier extends StateNotifier<CallState> {
         remoteUserId: callerId,
         callType: type,
         isVideoEnabled: type == CallType.video,
+        isSpeakerOn: type == CallType.video,
       );
     });
 
-    _acceptedSub = _socketService.onCallAccepted.listen((data) {
+    _acceptedSub = _socketService.onCallAccepted.listen((data) async {
       if (!mounted) return;
       if (state.session != null && data['callId'] == state.session!.id) {
         _startTimer();
+        final responderId = data['responderId'] as String?;
         state = state.copyWith(
           uiStatus: CallUIStatus.connected,
           remoteUserName: data['responderName'] as String? ?? state.remoteUserName,
+          remoteUserId: state.remoteUserId ?? responderId,
         );
+
+        _webrtcService.setSpeakerphoneOn(state.isSpeakerOn);
+
+        final offer = await _webrtcService.createOffer(isVideo: state.isVideo);
+        if (offer != null && mounted && state.session != null) {
+          _socketService.sendCallSignal(
+            state.session!.id,
+            {
+              'type': 'offer',
+              'sdp': offer.sdp,
+            },
+            targetUserId: state.remoteUserId,
+            channelId: state.channelId,
+          );
+        }
       }
     });
 
-    _rejectedSub = _socketService.onCallRejected.listen((data) {
+    _signalSub = _socketService.onCallSignal.listen((data) async {
+      if (!mounted) return;
+      final callId = data['callId'] as String?;
+      if (callId == null || state.session?.id != callId) return;
+
+      final rawSignal = data['signal'];
+      if (rawSignal == null || rawSignal is! Map) return;
+      final signal = Map<String, dynamic>.from(rawSignal);
+
+      final type = signal['type'] as String?;
+      if (type == 'offer') {
+        final sdp = signal['sdp'] as String?;
+        if (sdp != null) {
+          final answer = await _webrtcService.handleOffer(sdp, isVideo: state.isVideo);
+          if (answer != null && mounted && state.session != null) {
+            _socketService.sendCallSignal(
+              state.session!.id,
+              {
+                'type': 'answer',
+                'sdp': answer.sdp,
+              },
+              targetUserId: state.remoteUserId,
+              channelId: state.channelId,
+            );
+          }
+        }
+      } else if (type == 'answer') {
+        final sdp = signal['sdp'] as String?;
+        if (sdp != null) {
+          await _webrtcService.handleAnswer(sdp);
+        }
+      } else if (type == 'candidate') {
+        final candidateData = signal['candidate'];
+        if (candidateData is Map) {
+          await _webrtcService.handleCandidate(Map<String, dynamic>.from(candidateData));
+        }
+      }
+    });
+
+    _rejectedSub = _socketService.onCallRejected.listen((data) async {
       if (!mounted) return;
       if (state.session != null && data['callId'] == state.session!.id) {
         _stopTimer();
+        await _webrtcService.dispose();
         state = state.copyWith(uiStatus: CallUIStatus.ended);
         _scheduleAutoReset();
       }
     });
 
-    _endedSub = _socketService.onCallEnded.listen((data) {
+    _endedSub = _socketService.onCallEnded.listen((data) async {
       if (!mounted) return;
       if (state.session != null && data['callId'] == state.session!.id) {
         _stopTimer();
+        await _webrtcService.dispose();
         state = state.copyWith(uiStatus: CallUIStatus.ended);
         _scheduleAutoReset();
       }
@@ -218,6 +302,7 @@ class CallNotifier extends StateNotifier<CallState> {
     _autoResetTimer?.cancel();
     _stopTimer();
 
+    final isVideo = type == CallType.video;
     state = CallState(
       uiStatus: CallUIStatus.outgoingRinging,
       channelId: channelId,
@@ -225,10 +310,14 @@ class CallNotifier extends StateNotifier<CallState> {
       remoteUserName: remoteUserName ?? channelName,
       remoteUserId: targetUserId,
       callType: type,
-      isVideoEnabled: type == CallType.video,
+      isVideoEnabled: isVideo,
+      isSpeakerOn: isVideo,
     );
 
     try {
+      await _webrtcService.initLocalStream(isVideo: isVideo);
+      _webrtcService.setSpeakerphoneOn(state.isSpeakerOn);
+
       final session = await _repository.initiateCall(
         channelId,
         type,
@@ -238,6 +327,7 @@ class CallNotifier extends StateNotifier<CallState> {
       state = state.copyWith(session: session);
     } catch (e) {
       if (!mounted) return;
+      await _webrtcService.dispose();
       state = state.copyWith(uiStatus: CallUIStatus.ended);
       _scheduleAutoReset();
     }
@@ -246,6 +336,10 @@ class CallNotifier extends StateNotifier<CallState> {
   Future<void> acceptCall() async {
     if (state.session == null) return;
     try {
+      await _webrtcService.initLocalStream(isVideo: state.isVideo);
+      await _webrtcService.createPeerConnectionInstance(isVideo: state.isVideo);
+      _webrtcService.setSpeakerphoneOn(state.isSpeakerOn);
+
       final updated = await _repository.acceptCall(state.session!.id);
       if (!mounted) return;
       _startTimer();
@@ -255,12 +349,14 @@ class CallNotifier extends StateNotifier<CallState> {
       );
     } catch (e) {
       if (!mounted) return;
+      await _webrtcService.dispose();
       state = state.copyWith(uiStatus: CallUIStatus.ended);
       _scheduleAutoReset();
     }
   }
 
   Future<void> rejectCall({String? reason}) async {
+    await _webrtcService.dispose();
     if (state.session == null) {
       state = const CallState();
       return;
@@ -275,6 +371,7 @@ class CallNotifier extends StateNotifier<CallState> {
   Future<void> endCall() async {
     _stopTimer();
     final callId = state.session?.id;
+    await _webrtcService.dispose();
     state = state.copyWith(uiStatus: CallUIStatus.ended);
     _scheduleAutoReset();
 
@@ -286,18 +383,25 @@ class CallNotifier extends StateNotifier<CallState> {
   }
 
   void toggleAudioMute() {
-    state = state.copyWith(isAudioMuted: !state.isAudioMuted);
+    final newMute = !state.isAudioMuted;
+    _webrtcService.setMicrophoneMute(newMute);
+    state = state.copyWith(isAudioMuted: newMute);
   }
 
   void toggleVideo() {
-    state = state.copyWith(isVideoEnabled: !state.isVideoEnabled);
+    final newVideo = !state.isVideoEnabled;
+    _webrtcService.setVideoEnabled(newVideo);
+    state = state.copyWith(isVideoEnabled: newVideo);
   }
 
   void toggleSpeaker() {
-    state = state.copyWith(isSpeakerOn: !state.isSpeakerOn);
+    final newSpeaker = !state.isSpeakerOn;
+    _webrtcService.setSpeakerphoneOn(newSpeaker);
+    state = state.copyWith(isSpeakerOn: newSpeaker);
   }
 
   void switchCamera() {
+    _webrtcService.switchCamera();
     state = state.copyWith(isFrontCamera: !state.isFrontCamera);
   }
 
@@ -307,8 +411,10 @@ class CallNotifier extends StateNotifier<CallState> {
     _acceptedSub?.cancel();
     _rejectedSub?.cancel();
     _endedSub?.cancel();
+    _signalSub?.cancel();
     _durationTimer?.cancel();
     _autoResetTimer?.cancel();
+    _webrtcService.dispose();
     super.dispose();
   }
 }
@@ -318,4 +424,8 @@ final callStateProvider =
   final repo = ref.watch(chatRepositoryProvider);
   final socket = ref.watch(socketServiceProvider);
   return CallNotifier(repository: repo, socketService: socket);
+});
+
+final webrtcServiceProvider = Provider<WebRTCService>((ref) {
+  return ref.watch(callStateProvider.notifier).webrtcService;
 });

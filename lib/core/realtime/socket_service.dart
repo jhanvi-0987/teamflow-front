@@ -340,14 +340,21 @@ class SocketService {
     }
   }
 
-  void sendCallSignal(String callId, String targetUserId, dynamic signal) {
+  void sendCallSignal(
+    String callId,
+    dynamic signal, {
+    String? targetUserId,
+    String? channelId,
+  }) {
     if (_socket != null && _socket!.connected) {
-      _socket!.emit('call:signal', {
+      final payload = <String, dynamic>{
         'callId': callId,
-        'targetUserId': targetUserId,
         'signal': signal,
-      });
-      debugPrint('[SocketService] Emitted call:signal to $targetUserId for call $callId');
+      };
+      if (targetUserId != null) payload['targetUserId'] = targetUserId;
+      if (channelId != null) payload['channelId'] = channelId;
+      _socket!.emit('call:signal', payload);
+      debugPrint('[SocketService] Emitted call:signal for call $callId (target: $targetUserId, channel: $channelId)');
     }
   }
 

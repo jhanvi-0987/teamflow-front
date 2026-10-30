@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../providers/call_providers.dart';
 
@@ -12,6 +13,59 @@ class VideoCallScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
+  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+  final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
+  bool _localInitialized = false;
+  bool _remoteInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initRenderers();
+  }
+
+  Future<void> _initRenderers() async {
+    await _localRenderer.initialize();
+    await _remoteRenderer.initialize();
+    if (!mounted) return;
+
+    final webrtc = ref.read(webrtcServiceProvider);
+    if (webrtc.localStream != null) {
+      _localRenderer.srcObject = webrtc.localStream;
+    }
+    if (webrtc.remoteStream != null) {
+      _remoteRenderer.srcObject = webrtc.remoteStream;
+    }
+
+    webrtc.onLocalStreamReady = (stream) {
+      if (mounted) {
+        setState(() {
+          _localRenderer.srcObject = stream;
+        });
+      }
+    };
+
+    webrtc.onRemoteStreamReady = (stream) {
+      if (mounted) {
+        setState(() {
+          _remoteRenderer.srcObject = stream;
+        });
+      }
+    };
+
+    setState(() {
+      _localInitialized = true;
+      _remoteInitialized = true;
+    });
+  }
+
+  @override
+  void dispose() {
+    _localRenderer.dispose();
+    _remoteRenderer.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final callState = ref.watch(callStateProvider);
@@ -75,10 +129,21 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                     ),
                   ),
 
-                  // Remote Participant Centerpiece (Simulated Video Feed / Avatar fallback)
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+                  // Remote Video Feed if connected, else Avatar fallback
+                  if (callState.isConnected &&
+                      _remoteInitialized &&
+                      _remoteRenderer.srcObject != null)
+                    Positioned.fill(
+                      child: RTCVideoView(
+                        _remoteRenderer,
+                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                      ),
+                    )
+                  else
+                    // Remote Participant Centerpiece (Avatar fallback)
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                       Container(
                         width: 120,
                         height: 120,
@@ -177,7 +242,17 @@ class _VideoCallScreenState extends ConsumerState<VideoCallScreen> {
                 alignment: Alignment.center,
                 children: [
                   // Local camera state
-                  if (callState.isVideoEnabled)
+                  if (callState.isVideoEnabled &&
+                      _localInitialized &&
+                      _localRenderer.srcObject != null)
+                    Positioned.fill(
+                      child: RTCVideoView(
+                        _localRenderer,
+                        mirror: callState.isFrontCamera,
+                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                      ),
+                    )
+                  else if (callState.isVideoEnabled)
                     Container(
                       color: const Color(0xFF334155),
                       child: Center(
