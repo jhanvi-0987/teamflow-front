@@ -884,6 +884,7 @@ class _ChannelsListScreenState extends ConsumerState<ChannelsListScreen> {
 
                       ...regularChannels.map((c) => _ChannelListItem(
                             channel: c,
+                            currentUserId: currentUser?.id,
                             unreadCount: unreadState.countForChannel(c.id),
                             latestMessageOverride: unreadState.lastMessageForChannel(c.id),
                             latestSenderOverride: unreadState.lastSenderForChannel(c.id),
@@ -958,6 +959,7 @@ class _ChannelsListScreenState extends ConsumerState<ChannelsListScreen> {
                       else
                         ...directMessages.map((dm) => _ChannelListItem(
                               channel: dm,
+                              currentUserId: currentUser?.id,
                               unreadCount: unreadState.countForChannel(dm.id),
                               latestMessageOverride: unreadState.lastMessageForChannel(dm.id),
                               latestSenderOverride: unreadState.lastSenderForChannel(dm.id),
@@ -1065,6 +1067,7 @@ class _FilterChip extends StatelessWidget {
 
 class _ChannelListItem extends StatelessWidget {
   final ChannelModel channel;
+  final String? currentUserId;
   final int unreadCount;
   final String? latestMessageOverride;
   final String? latestSenderOverride;
@@ -1073,6 +1076,7 @@ class _ChannelListItem extends StatelessWidget {
 
   const _ChannelListItem({
     required this.channel,
+    this.currentUserId,
     this.unreadCount = 0,
     this.latestMessageOverride,
     this.latestSenderOverride,
@@ -1097,6 +1101,7 @@ class _ChannelListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDM = channel.isDM;
+    final displayName = channel.getDisplayName(currentUserId);
     final displayMessage = latestMessageOverride ?? channel.lastMessageText;
     final displaySender = latestSenderOverride ?? channel.lastMessageSender;
     final displayTime = latestTimeOverride ?? channel.lastMessageTime;
@@ -1157,8 +1162,8 @@ class _ChannelListItem extends StatelessWidget {
                       alignment: Alignment.center,
                       child: Text(
                         isDM
-                            ? (channel.name.isNotEmpty
-                                ? channel.name[0].toUpperCase()
+                            ? (displayName.isNotEmpty
+                                ? displayName[0].toUpperCase()
                                 : '@')
                             : '#',
                         style: const TextStyle(
@@ -1196,7 +1201,7 @@ class _ChannelListItem extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              isDM ? channel.name : '#${channel.name}',
+                              isDM ? displayName : '#${channel.name}',
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,

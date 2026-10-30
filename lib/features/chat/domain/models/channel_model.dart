@@ -1,5 +1,34 @@
 import 'package:equatable/equatable.dart';
 
+class ChannelMemberSummary extends Equatable {
+  final String id;
+  final String name;
+  final String email;
+
+  const ChannelMemberSummary({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+
+  factory ChannelMemberSummary.fromJson(Map<String, dynamic> json) {
+    return ChannelMemberSummary(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'email': email,
+      };
+
+  @override
+  List<Object?> get props => [id, name, email];
+}
+
 enum ChannelType {
   public,
   private,
@@ -40,6 +69,7 @@ class ChannelModel extends Equatable {
   final String? lastMessageText;
   final String? lastMessageSender;
   final DateTime? lastMessageTime;
+  final List<ChannelMemberSummary> members;
   final DateTime updatedAt;
 
   const ChannelModel({
@@ -53,15 +83,37 @@ class ChannelModel extends Equatable {
     this.lastMessageText,
     this.lastMessageSender,
     this.lastMessageTime,
+    this.members = const [],
     required this.updatedAt,
   });
 
   bool get isDM => type == ChannelType.directMessage;
   bool get isPrivate => type == ChannelType.private;
 
+  /// Returns the appropriate title for the channel:
+  /// - For regular channels: '#channel-name' or 'channel-name'
+  /// - For Direct Messages: the OTHER user's name (vice versa for each participant)
+  String getDisplayName(String? currentUserId) {
+    if (!isDM) return name;
+    if (members.isNotEmpty && currentUserId != null && currentUserId.isNotEmpty) {
+      final other = members.firstWhere(
+        (m) => m.id != currentUserId,
+        orElse: () => members.first,
+      );
+      if (other.id != currentUserId && other.name.isNotEmpty) {
+        return other.name;
+      }
+    }
+    return name;
+  }
+
   factory ChannelModel.fromJson(Map<String, dynamic> json) {
     final lastMsg = json['lastMessage'] as Map<String, dynamic>?;
     final sender = lastMsg?['sender'] as Map<String, dynamic>?;
+    final membersList = (json['members'] as List<dynamic>?)
+            ?.map((m) => ChannelMemberSummary.fromJson(m as Map<String, dynamic>))
+            .toList() ??
+        const <ChannelMemberSummary>[];
 
     return ChannelModel(
       id: json['id'] as String,
@@ -69,13 +121,14 @@ class ChannelModel extends Equatable {
       name: json['name'] as String? ?? 'General',
       topic: json['topic'] as String?,
       type: ChannelType.fromString(json['type'] as String?),
-      membersCount: json['membersCount'] as int? ?? 0,
+      membersCount: json['membersCount'] as int? ?? membersList.length,
       totalMessages: json['totalMessages'] as int? ?? 0,
       lastMessageText: lastMsg?['content'] as String?,
       lastMessageSender: sender?['name'] as String? ?? sender?['email'] as String?,
       lastMessageTime: lastMsg?['createdAt'] != null
           ? DateTime.tryParse(lastMsg!['createdAt'] as String)
           : null,
+      members: membersList,
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'] as String)
           : DateTime.now(),
@@ -94,6 +147,7 @@ class ChannelModel extends Equatable {
         lastMessageText,
         lastMessageSender,
         lastMessageTime,
+        members,
         updatedAt,
       ];
 }

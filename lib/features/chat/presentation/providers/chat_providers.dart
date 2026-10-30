@@ -23,7 +23,10 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 
 /// Auto-refreshing list of channels for the active workspace
 final workspaceChannelsProvider =
-    FutureProvider.family<List<ChannelModel>, String>((ref, workspaceId) async {
+    FutureProvider.autoDispose.family<List<ChannelModel>, String>((ref, workspaceId) async {
+  // Re-fetch whenever user logs in or switches account
+  final authUser = ref.watch(authControllerProvider).user;
+  if (authUser == null) return [];
   final repository = ref.watch(chatRepositoryProvider);
   return repository.getChannels(workspaceId);
 });

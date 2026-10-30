@@ -9,6 +9,7 @@ import '../../../workspaces/presentation/widgets/create_workspace_dialog.dart';
 import '../../../workspaces/presentation/widgets/invite_member_dialog.dart';
 import '../../../workspaces/presentation/widgets/workspace_switcher_sheet.dart';
 import '../../../notifications/presentation/widgets/notification_bell_button.dart';
+import '../../../chat/presentation/providers/chat_providers.dart';
 
 class WorkspaceTabView extends ConsumerWidget {
   const WorkspaceTabView({super.key});
@@ -276,6 +277,7 @@ class WorkspaceTabView extends ConsumerWidget {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             onPressed: () {
+              ref.invalidate(workspaceChannelsProvider);
               ref.read(authControllerProvider.notifier).logout();
             },
           ),

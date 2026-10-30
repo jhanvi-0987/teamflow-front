@@ -11,12 +11,14 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> checkAuthStatus() async {
     try {
       final user = await _repository.getCurrentUser();
+      if (!mounted) return;
       if (user != null) {
         state = AuthState.authenticated(user);
       } else {
         state = const AuthState.unauthenticated();
       }
     } catch (e) {
+      if (!mounted) return;
       state = const AuthState.unauthenticated();
     }
   }
@@ -25,10 +27,13 @@ class AuthController extends StateNotifier<AuthState> {
     state = const AuthState.loading();
     try {
       final user = await _repository.login(email: email, password: password);
+      if (!mounted) return;
       state = AuthState.authenticated(user);
     } on Failure catch (e) {
+      if (!mounted) return;
       state = AuthState.error(e.message);
     } catch (e) {
+      if (!mounted) return;
       state = AuthState.error(e.toString());
     }
   }
@@ -41,10 +46,13 @@ class AuthController extends StateNotifier<AuthState> {
         password: password,
         name: name,
       );
+      if (!mounted) return;
       state = AuthState.authenticated(user);
     } on Failure catch (e) {
+      if (!mounted) return;
       state = AuthState.error(e.message);
     } catch (e) {
+      if (!mounted) return;
       state = AuthState.error(e.toString());
     }
   }
@@ -54,7 +62,9 @@ class AuthController extends StateNotifier<AuthState> {
     try {
       await _repository.logout();
     } finally {
-      state = const AuthState.unauthenticated();
+      if (mounted) {
+        state = const AuthState.unauthenticated();
+      }
     }
   }
 }

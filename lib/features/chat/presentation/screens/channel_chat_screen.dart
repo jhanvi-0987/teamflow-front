@@ -318,6 +318,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
     });
 
     final isDM = widget.channel.isDM;
+    final channelDisplayName = widget.channel.getDisplayName(currentUser?.id);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -347,8 +348,8 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
                   alignment: Alignment.center,
                   child: Text(
                     isDM
-                        ? (widget.channel.name.isNotEmpty
-                            ? widget.channel.name[0].toUpperCase()
+                        ? (channelDisplayName.isNotEmpty
+                            ? channelDisplayName[0].toUpperCase()
                             : '@')
                         : '#',
                     style: const TextStyle(
@@ -364,7 +365,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isDM ? widget.channel.name : '#${widget.channel.name}',
+                        isDM ? channelDisplayName : '#${widget.channel.name}',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -411,7 +412,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
               }
               ref.read(callStateProvider.notifier).startCall(
                     channelId: widget.channel.id,
-                    channelName: widget.channel.name,
+                    channelName: channelDisplayName,
                     type: CallType.voice,
                   );
               Navigator.of(context).push(
@@ -440,7 +441,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
               }
               ref.read(callStateProvider.notifier).startCall(
                     channelId: widget.channel.id,
-                    channelName: widget.channel.name,
+                    channelName: channelDisplayName,
                     type: CallType.video,
                   );
               Navigator.of(context).push(
@@ -769,7 +770,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
                         textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
                           hintText: isDM
-                              ? 'Message ${widget.channel.name}...'
+                              ? 'Message $channelDisplayName...'
                               : 'Message #${widget.channel.name}...',
                           hintStyle: TextStyle(
                             color: AppColors.textSecondary.withValues(alpha: 0.7),
