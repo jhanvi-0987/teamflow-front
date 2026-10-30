@@ -31,6 +31,11 @@ class SocketService {
   final _chatReactionUpdatedController = StreamController<Map<String, dynamic>>.broadcast();
   final _chatMessageDeletedController = StreamController<Map<String, dynamic>>.broadcast();
   final _chatMessagePinnedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _callIncomingController = StreamController<Map<String, dynamic>>.broadcast();
+  final _callAcceptedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _callRejectedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _callEndedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _callSignalController = StreamController<Map<String, dynamic>>.broadcast();
   final _userTypingController = StreamController<Map<String, dynamic>>.broadcast();
   final _messageNotificationController = StreamController<Map<String, dynamic>>.broadcast();
   final _notificationCreatedController = StreamController<Map<String, dynamic>>.broadcast();
@@ -53,6 +58,11 @@ class SocketService {
   Stream<Map<String, dynamic>> get onChatReactionUpdated => _chatReactionUpdatedController.stream;
   Stream<Map<String, dynamic>> get onChatMessageDeleted => _chatMessageDeletedController.stream;
   Stream<Map<String, dynamic>> get onChatMessagePinned => _chatMessagePinnedController.stream;
+  Stream<Map<String, dynamic>> get onCallIncoming => _callIncomingController.stream;
+  Stream<Map<String, dynamic>> get onCallAccepted => _callAcceptedController.stream;
+  Stream<Map<String, dynamic>> get onCallRejected => _callRejectedController.stream;
+  Stream<Map<String, dynamic>> get onCallEnded => _callEndedController.stream;
+  Stream<Map<String, dynamic>> get onCallSignal => _callSignalController.stream;
   Stream<Map<String, dynamic>> get onUserTyping => _userTypingController.stream;
   Stream<Map<String, dynamic>> get onMessageNotification => _messageNotificationController.stream;
   Stream<Map<String, dynamic>> get onNotificationCreated => _notificationCreatedController.stream;
@@ -218,6 +228,41 @@ class SocketService {
       }
     });
 
+    _socket!.on('call:incoming', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time call:incoming received: $data');
+        _callIncomingController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('call:accepted', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time call:accepted received: $data');
+        _callAcceptedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('call:rejected', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time call:rejected received: $data');
+        _callRejectedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('call:ended', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time call:ended received: $data');
+        _callEndedController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('call:signal', (data) {
+      if (data is Map) {
+        debugPrint('[SocketService] Real-time call:signal received: $data');
+        _callSignalController.add(Map<String, dynamic>.from(data));
+      }
+    });
+
     _socket!.on('chat:user_typing', (data) {
       if (data is Map) {
         _userTypingController.add(Map<String, dynamic>.from(data));
@@ -295,6 +340,17 @@ class SocketService {
     }
   }
 
+  void sendCallSignal(String callId, String targetUserId, dynamic signal) {
+    if (_socket != null && _socket!.connected) {
+      _socket!.emit('call:signal', {
+        'callId': callId,
+        'targetUserId': targetUserId,
+        'signal': signal,
+      });
+      debugPrint('[SocketService] Emitted call:signal to $targetUserId for call $callId');
+    }
+  }
+
   void renewAuth(String newAccessToken) {
     if (_socket != null && _socket!.connected) {
       _socket!.emit('auth:renew', {'accessToken': newAccessToken});
@@ -328,6 +384,11 @@ class SocketService {
     _chatReactionUpdatedController.close();
     _chatMessageDeletedController.close();
     _chatMessagePinnedController.close();
+    _callIncomingController.close();
+    _callAcceptedController.close();
+    _callRejectedController.close();
+    _callEndedController.close();
+    _callSignalController.close();
     _userTypingController.close();
     _messageNotificationController.close();
     _notificationCreatedController.close();

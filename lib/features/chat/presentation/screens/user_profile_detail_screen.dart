@@ -3,7 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/models/channel_model.dart';
+import '../../domain/models/call_session_model.dart';
+import '../providers/call_providers.dart';
 import '../providers/chat_providers.dart';
+import 'voice_call_screen.dart';
+import 'video_call_screen.dart';
 
 class UserProfileDetailScreen extends ConsumerWidget {
   final ChannelModel channel;
@@ -29,39 +33,6 @@ class UserProfileDetailScreen extends ConsumerWidget {
     } catch (_) {
       return 'N/A';
     }
-  }
-
-  void _showComingSoonDialog(BuildContext context, String feature) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.info_outline_rounded, color: Color(0xFF6366F1)),
-            ),
-            const SizedBox(width: 12),
-            Text(feature, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Text(
-          '$feature functionality is queued for the upcoming TeamFlow real-time audio/video release.',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -289,13 +260,57 @@ class UserProfileDetailScreen extends ConsumerWidget {
                         context,
                         icon: Icons.call_rounded,
                         label: 'Audio',
-                        onTap: () => _showComingSoonDialog(context, 'Audio Call'),
+                        onTap: () {
+                          if (ref.read(callStateProvider).isActive) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('A call is already in progress'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          ref.read(callStateProvider.notifier).startCall(
+                                channelId: channel.id,
+                                channelName: name,
+                                type: CallType.voice,
+                                targetUserId: otherUser['id']?.toString(),
+                                remoteUserName: name,
+                              );
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const VoiceCallScreen(),
+                            ),
+                          );
+                        },
                       ),
                       _buildActionButton(
                         context,
                         icon: Icons.videocam_rounded,
                         label: 'Video',
-                        onTap: () => _showComingSoonDialog(context, 'Video Call'),
+                        onTap: () {
+                          if (ref.read(callStateProvider).isActive) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('A call is already in progress'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            return;
+                          }
+                          ref.read(callStateProvider.notifier).startCall(
+                                channelId: channel.id,
+                                channelName: name,
+                                type: CallType.video,
+                                targetUserId: otherUser['id']?.toString(),
+                                remoteUserName: name,
+                              );
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const VideoCallScreen(),
+                            ),
+                          );
+                        },
                       ),
                       _buildActionButton(
                         context,

@@ -4,6 +4,7 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_model.dart';
 import '../../domain/models/reaction_model.dart';
+import '../../domain/models/call_session_model.dart';
 
 abstract class ChatRemoteDataSource {
   Future<List<ChannelModel>> getChannels(String workspaceId);
@@ -45,6 +46,23 @@ abstract class ChatRemoteDataSource {
     String messageId,
     String targetChannelId,
   );
+
+  Future<CallSessionModel> initiateCall(
+    String channelId,
+    CallType type, {
+    String? targetUserId,
+  });
+
+  Future<CallSessionModel> acceptCall(String callId);
+
+  Future<CallSessionModel> rejectCall(String callId, {String? reason});
+
+  Future<CallSessionModel> endCall(String callId);
+
+  Future<List<CallSessionModel>> getCallHistory(
+    String channelId, {
+    int limit = 20,
+  });
 }
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
@@ -215,6 +233,82 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         data: {'targetChannelId': targetChannelId},
       );
       return MessageModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<CallSessionModel> initiateCall(
+    String channelId,
+    CallType type, {
+    String? targetUserId,
+  }) async {
+    try {
+      final data = <String, dynamic>{'type': type.toApiString()};
+      if (targetUserId != null) {
+        data['targetUserId'] = targetUserId;
+      }
+      final response = await dio.post(
+        ApiEndpoints.channelInitiateCall(channelId),
+        data: data,
+      );
+      return CallSessionModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<CallSessionModel> acceptCall(String callId) async {
+    try {
+      final response = await dio.post(ApiEndpoints.callAccept(callId));
+      return CallSessionModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<CallSessionModel> rejectCall(String callId, {String? reason}) async {
+    try {
+      final data = <String, dynamic>{};
+      if (reason != null) {
+        data['reason'] = reason;
+      }
+      final response = await dio.post(
+        ApiEndpoints.callReject(callId),
+        data: data.isNotEmpty ? data : null,
+      );
+      return CallSessionModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<CallSessionModel> endCall(String callId) async {
+    try {
+      final response = await dio.post(ApiEndpoints.callEnd(callId));
+      return CallSessionModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<List<CallSessionModel>> getCallHistory(
+    String channelId, {
+    int limit = 20,
+  }) async {
+    try {
+      final response = await dio.get(
+        ApiEndpoints.channelCalls(channelId, limit: limit),
+      );
+      final list = response.data as List<dynamic>;
+      return list
+          .map((item) => CallSessionModel.fromJson(item as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw _handleError(e);
     }

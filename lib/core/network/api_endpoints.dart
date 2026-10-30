@@ -99,6 +99,15 @@ class ApiEndpoints {
   static String messageForward(String channelId, String messageId) =>
       '/channels/$channelId/messages/$messageId/forward';
 
+  // Call endpoints
+  static String channelCalls(String channelId, {int limit = 20}) =>
+      '/channels/$channelId/calls?limit=$limit';
+  static String channelInitiateCall(String channelId) =>
+      '/channels/$channelId/calls';
+  static String callAccept(String callId) => '/calls/$callId/accept';
+  static String callReject(String callId) => '/calls/$callId/reject';
+  static String callEnd(String callId) => '/calls/$callId/end';
+
   // Notification endpoints
   static const String notifications = '/notifications';
   static const String notificationsUnreadCount = '/notifications/unread-count';

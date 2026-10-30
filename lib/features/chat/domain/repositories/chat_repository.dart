@@ -1,6 +1,7 @@
 import '../models/channel_model.dart';
 import '../models/message_model.dart';
 import '../models/reaction_model.dart';
+import '../models/call_session_model.dart';
 
 abstract class ChatRepository {
   Future<List<ChannelModel>> getChannels(String workspaceId);
@@ -42,4 +43,21 @@ abstract class ChatRepository {
     String messageId,
     String targetChannelId,
   );
+
+  Future<CallSessionModel> initiateCall(
+    String channelId,
+    CallType type, {
+    String? targetUserId,
+  });
+
+  Future<CallSessionModel> acceptCall(String callId);
+
+  Future<CallSessionModel> rejectCall(String callId, {String? reason});
+
+  Future<CallSessionModel> endCall(String callId);
+
+  Future<List<CallSessionModel>> getCallHistory(
+    String channelId, {
+    int limit = 20,
+  });
 }

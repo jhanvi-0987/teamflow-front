@@ -1,6 +1,7 @@
 import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_model.dart';
 import '../../domain/models/reaction_model.dart';
+import '../../domain/models/call_session_model.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../datasources/chat_remote_data_source.dart';
 
@@ -84,4 +85,35 @@ class ChatRepositoryImpl implements ChatRepository {
     String targetChannelId,
   ) =>
       _remoteDataSource.forwardMessage(channelId, messageId, targetChannelId);
+
+  @override
+  Future<CallSessionModel> initiateCall(
+    String channelId,
+    CallType type, {
+    String? targetUserId,
+  }) =>
+      _remoteDataSource.initiateCall(
+        channelId,
+        type,
+        targetUserId: targetUserId,
+      );
+
+  @override
+  Future<CallSessionModel> acceptCall(String callId) =>
+      _remoteDataSource.acceptCall(callId);
+
+  @override
+  Future<CallSessionModel> rejectCall(String callId, {String? reason}) =>
+      _remoteDataSource.rejectCall(callId, reason: reason);
+
+  @override
+  Future<CallSessionModel> endCall(String callId) =>
+      _remoteDataSource.endCall(callId);
+
+  @override
+  Future<List<CallSessionModel>> getCallHistory(
+    String channelId, {
+    int limit = 20,
+  }) =>
+      _remoteDataSource.getCallHistory(channelId, limit: limit);
 }

@@ -15,6 +15,10 @@ import '../providers/chat_notification_providers.dart';
 import '../../../projects/presentation/providers/project_providers.dart';
 import 'user_profile_detail_screen.dart';
 import 'team_channel_detail_screen.dart';
+import '../../domain/models/call_session_model.dart';
+import '../providers/call_providers.dart';
+import 'voice_call_screen.dart';
+import 'video_call_screen.dart';
 
 class ChannelChatScreen extends ConsumerStatefulWidget {
   final ChannelModel channel;
@@ -388,6 +392,64 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.call_rounded,
+              color: AppColors.textPrimary,
+              size: 22,
+            ),
+            tooltip: 'Voice Call',
+            onPressed: () {
+              if (ref.read(callStateProvider).isActive) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('A call is already in progress'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              ref.read(callStateProvider.notifier).startCall(
+                    channelId: widget.channel.id,
+                    channelName: widget.channel.name,
+                    type: CallType.voice,
+                  );
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const VoiceCallScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.videocam_rounded,
+              color: AppColors.textPrimary,
+              size: 24,
+            ),
+            tooltip: 'Video Call',
+            onPressed: () {
+              if (ref.read(callStateProvider).isActive) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('A call is already in progress'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              ref.read(callStateProvider.notifier).startCall(
+                    channelId: widget.channel.id,
+                    channelName: widget.channel.name,
+                    type: CallType.video,
+                  );
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const VideoCallScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(
               Icons.info_outline_rounded,
