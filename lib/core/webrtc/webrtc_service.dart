@@ -57,11 +57,7 @@ class WebRTCService {
       await requestPermissions(isVideo: isVideo);
 
       final mediaConstraints = <String, dynamic>{
-        'audio': {
-          'echoCancellation': true,
-          'noiseSuppression': true,
-          'autoGainControl': true,
-        },
+        'audio': true,
         'video': isVideo
             ? {
                 'mandatory': {
@@ -87,6 +83,10 @@ class WebRTCService {
   /// Initializes RTCPeerConnection and attaches local audio/video tracks.
   Future<RTCPeerConnection?> createPeerConnectionInstance({bool isVideo = false}) async {
     try {
+      if (_peerConnection != null) {
+        return _peerConnection;
+      }
+
       if (_localStream == null) {
         await initLocalStream(isVideo: isVideo);
       }
@@ -106,6 +106,10 @@ class WebRTCService {
         if (event.streams.isNotEmpty) {
           _remoteStream = event.streams[0];
           onRemoteStreamReady?.call(_remoteStream!);
+        }
+        if (event.track.kind == 'audio') {
+          event.track.enabled = true;
+          debugPrint('[WebRTC] Remote audio track enabled: ${event.track.enabled}');
         }
       };
 
@@ -245,14 +249,10 @@ class WebRTCService {
   }
 
   /// Toggles between device speaker and earpiece.
-  void setSpeakerphoneOn(bool isSpeakerOn) {
+  Future<void> setSpeakerphoneOn(bool isSpeakerOn) async {
     try {
-      if (_localStream != null) {
-        for (final track in _localStream!.getAudioTracks()) {
-          track.enableSpeakerphone(isSpeakerOn);
-        }
-      }
-      debugPrint('[WebRTC] Speakerphone set to: $isSpeakerOn');
+      await Helper.setSpeakerphoneOn(isSpeakerOn);
+      debugPrint('[WebRTC] Speakerphone set via Helper to: $isSpeakerOn');
     } catch (e) {
       debugPrint('[WebRTC] Failed to toggle speakerphone: $e');
     }

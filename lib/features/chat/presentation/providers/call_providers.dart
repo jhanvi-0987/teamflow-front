@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/realtime/socket_service.dart';
 import '../../../../core/webrtc/webrtc_service.dart';
+import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../domain/models/call_session_model.dart';
 import '../../domain/repositories/chat_repository.dart';
 import 'chat_providers.dart';
@@ -28,6 +30,7 @@ class CallState extends Equatable {
   final bool isSpeakerOn;
   final bool isFrontCamera;
   final int durationSeconds;
+  final bool isCaller;
 
   const CallState({
     this.uiStatus = CallUIStatus.idle,
@@ -42,6 +45,7 @@ class CallState extends Equatable {
     this.isSpeakerOn = true,
     this.isFrontCamera = true,
     this.durationSeconds = 0,
+    this.isCaller = false,
   });
 
   bool get isActive =>
@@ -73,6 +77,7 @@ class CallState extends Equatable {
     bool? isSpeakerOn,
     bool? isFrontCamera,
     int? durationSeconds,
+    bool? isCaller,
     bool clearSession = false,
   }) {
     return CallState(
@@ -88,6 +93,7 @@ class CallState extends Equatable {
       isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,
       isFrontCamera: isFrontCamera ?? this.isFrontCamera,
       durationSeconds: durationSeconds ?? this.durationSeconds,
+      isCaller: isCaller ?? this.isCaller,
     );
   }
 
@@ -105,6 +111,7 @@ class CallState extends Equatable {
         isSpeakerOn,
         isFrontCamera,
         durationSeconds,
+        isCaller,
       ];
 }
 
@@ -112,6 +119,7 @@ class CallNotifier extends StateNotifier<CallState> {
   final ChatRepository _repository;
   final SocketService _socketService;
   final WebRTCService _webrtcService;
+  final String? _currentUserId;
   StreamSubscription? _incomingSub;
   StreamSubscription? _acceptedSub;
   StreamSubscription? _rejectedSub;
@@ -124,9 +132,11 @@ class CallNotifier extends StateNotifier<CallState> {
     required ChatRepository repository,
     required SocketService socketService,
     WebRTCService? webrtcService,
+    String? currentUserId,
   })  : _repository = repository,
         _socketService = socketService,
         _webrtcService = webrtcService ?? WebRTCService(),
+        _currentUserId = currentUserId,
         super(const CallState()) {
     _init();
   }
@@ -180,6 +190,7 @@ class CallNotifier extends StateNotifier<CallState> {
         callType: type,
         isVideoEnabled: type == CallType.video,
         isSpeakerOn: type == CallType.video,
+        isCaller: false,
       );
     });
 
@@ -196,17 +207,23 @@ class CallNotifier extends StateNotifier<CallState> {
 
         _webrtcService.setSpeakerphoneOn(state.isSpeakerOn);
 
-        final offer = await _webrtcService.createOffer(isVideo: state.isVideo);
-        if (offer != null && mounted && state.session != null) {
-          _socketService.sendCallSignal(
-            state.session!.id,
-            {
-              'type': 'offer',
-              'sdp': offer.sdp,
-            },
-            targetUserId: state.remoteUserId,
-            channelId: state.channelId,
-          );
+        // ONLY the caller initiates the SDP offer to avoid collisions
+        if (state.isCaller) {
+          debugPrint('[WebRTC] Caller generating SDP offer...');
+          final offer = await _webrtcService.createOffer(isVideo: state.isVideo);
+          if (offer != null && mounted && state.session != null) {
+            _socketService.sendCallSignal(
+              state.session!.id,
+              {
+                'type': 'offer',
+                'sdp': offer.sdp,
+              },
+              targetUserId: state.remoteUserId,
+              channelId: state.channelId,
+            );
+          }
+        } else {
+          debugPrint('[WebRTC] Callee connected, awaiting SDP offer from caller...');
         }
       }
     });
@@ -216,6 +233,11 @@ class CallNotifier extends StateNotifier<CallState> {
       final callId = data['callId'] as String?;
       if (callId == null || state.session?.id != callId) return;
 
+      final senderId = data['senderId'] as String?;
+      if (_currentUserId != null && senderId == _currentUserId) {
+        return; // Ignore signals echoed back to sender
+      }
+
       final rawSignal = data['signal'];
       if (rawSignal == null || rawSignal is! Map) return;
       final signal = Map<String, dynamic>.from(rawSignal);
@@ -224,8 +246,10 @@ class CallNotifier extends StateNotifier<CallState> {
       if (type == 'offer') {
         final sdp = signal['sdp'] as String?;
         if (sdp != null) {
+          debugPrint('[WebRTC] Handling incoming SDP offer...');
           final answer = await _webrtcService.handleOffer(sdp, isVideo: state.isVideo);
           if (answer != null && mounted && state.session != null) {
+            debugPrint('[WebRTC] Sending SDP answer back to caller...');
             _socketService.sendCallSignal(
               state.session!.id,
               {
@@ -240,6 +264,7 @@ class CallNotifier extends StateNotifier<CallState> {
       } else if (type == 'answer') {
         final sdp = signal['sdp'] as String?;
         if (sdp != null) {
+          debugPrint('[WebRTC] Handling incoming SDP answer...');
           await _webrtcService.handleAnswer(sdp);
         }
       } else if (type == 'candidate') {
@@ -312,6 +337,7 @@ class CallNotifier extends StateNotifier<CallState> {
       callType: type,
       isVideoEnabled: isVideo,
       isSpeakerOn: isVideo,
+      isCaller: true,
     );
 
     try {
@@ -423,7 +449,12 @@ final callStateProvider =
     StateNotifierProvider<CallNotifier, CallState>((ref) {
   final repo = ref.watch(chatRepositoryProvider);
   final socket = ref.watch(socketServiceProvider);
-  return CallNotifier(repository: repo, socketService: socket);
+  final authUser = ref.watch(authControllerProvider).user;
+  return CallNotifier(
+    repository: repo,
+    socketService: socket,
+    currentUserId: authUser?.id,
+  );
 });
 
 final webrtcServiceProvider = Provider<WebRTCService>((ref) {

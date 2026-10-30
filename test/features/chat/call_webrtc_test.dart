@@ -142,7 +142,7 @@ class FakeWebRTCService extends WebRTCService {
   }
 
   @override
-  void setSpeakerphoneOn(bool speakerOn) {
+  Future<void> setSpeakerphoneOn(bool speakerOn) async {
     isSpeaker = speakerOn;
   }
 
