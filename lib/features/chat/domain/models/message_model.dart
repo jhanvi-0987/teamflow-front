@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'message_attachment_model.dart';
 import 'reaction_model.dart';
 
 class ReplyMessageModel extends Equatable {
@@ -58,6 +59,7 @@ class MessageModel extends Equatable {
   final DateTime? deliveredAt;
   final DateTime? readAt;
   final List<ReactionGroupModel> reactions;
+  final List<MessageAttachmentModel> attachments;
   final DateTime createdAt;
 
   const MessageModel({
@@ -81,11 +83,13 @@ class MessageModel extends Equatable {
     this.deliveredAt,
     this.readAt,
     this.reactions = const [],
+    this.attachments = const [],
     required this.createdAt,
   });
 
   bool get hasLinkedTask => taskId != null && taskId!.isNotEmpty;
   bool get hasReactions => reactions.isNotEmpty;
+  bool get hasAttachments => attachments.isNotEmpty;
   bool get isReply => replyTo != null;
   bool get isForwarded => content.startsWith('[Forwarded from');
 
@@ -110,6 +114,7 @@ class MessageModel extends Equatable {
     DateTime? deliveredAt,
     DateTime? readAt,
     List<ReactionGroupModel>? reactions,
+    List<MessageAttachmentModel>? attachments,
     DateTime? createdAt,
   }) {
     return MessageModel(
@@ -133,6 +138,7 @@ class MessageModel extends Equatable {
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
       reactions: reactions ?? this.reactions,
+      attachments: attachments ?? this.attachments,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -141,6 +147,7 @@ class MessageModel extends Equatable {
     final sender = json['sender'] as Map<String, dynamic>?;
     final task = json['task'] as Map<String, dynamic>?;
     final reactionsList = json['reactions'] as List<dynamic>?;
+    final attachmentsList = json['attachments'] as List<dynamic>?;
     final replyToRaw = json['replyTo'] as Map<String, dynamic>?;
     final pinnedBy = json['pinnedBy'] as Map<String, dynamic>?;
 
@@ -175,6 +182,12 @@ class MessageModel extends Equatable {
               .map((e) => ReactionGroupModel.fromJson(e as Map<String, dynamic>))
               .toList()
           : const [],
+      attachments: attachmentsList != null
+          ? attachmentsList
+              .whereType<Map<String, dynamic>>()
+              .map(MessageAttachmentModel.fromJson)
+              .toList()
+          : const [],
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
@@ -200,6 +213,8 @@ class MessageModel extends Equatable {
         'status': status,
         'deliveredAt': deliveredAt?.toIso8601String(),
         'readAt': readAt?.toIso8601String(),
+        'reactions': reactions.map((r) => r.toJson()).toList(),
+        'attachments': attachments.map((a) => a.toJson()).toList(),
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -225,6 +240,7 @@ class MessageModel extends Equatable {
         deliveredAt,
         readAt,
         reactions,
+        attachments,
         createdAt,
       ];
 }

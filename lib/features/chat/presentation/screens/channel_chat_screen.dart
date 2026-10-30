@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/realtime/socket_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
@@ -12,6 +15,7 @@ import '../../domain/models/channel_model.dart';
 import '../../domain/models/message_model.dart';
 import '../providers/chat_providers.dart';
 import '../providers/chat_notification_providers.dart';
+import '../widgets/chat_attachment_view.dart';
 import '../../../projects/presentation/providers/project_providers.dart';
 import 'user_profile_detail_screen.dart';
 import 'team_channel_detail_screen.dart';
@@ -41,6 +45,7 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
   String? _selectedTaskId;
   String? _selectedTaskTitle;
   MessageModel? _replyingToMessage;
+  final List<StagedAttachment> _stagedAttachments = [];
   late final StateController<String?> _activeChannelNotifier;
   late final SocketService _socketService;
 
@@ -114,17 +119,41 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _textController.text.trim();
-    if (text.isEmpty && _selectedTaskId == null) return;
+    final hasPendingUploads = _stagedAttachments.any((a) => a.isUploading);
+    if (hasPendingUploads) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please wait for attachments to finish uploading...'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
-    final content = text.isNotEmpty ? text : 'Referenced a task';
+    final readyAttachments = _stagedAttachments
+        .where((a) => a.uploadedModel != null)
+        .map((a) => a.uploadedModel!)
+        .toList();
+
+    if (text.isEmpty && readyAttachments.isEmpty && _selectedTaskId == null) {
+      return;
+    }
+
+    final content = text.isNotEmpty
+        ? text
+        : (_selectedTaskId != null ? 'Referenced a task' : '');
     final taskId = _selectedTaskId;
     final replyToId = _replyingToMessage?.id;
+    final attachmentsToSend =
+        readyAttachments.isNotEmpty ? readyAttachments : null;
 
     _textController.clear();
     setState(() {
       _selectedTaskId = null;
       _selectedTaskTitle = null;
       _replyingToMessage = null;
+      _stagedAttachments.clear();
     });
 
     if (_isTyping) {
@@ -136,11 +165,179 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
 
     final success = await ref
         .read(channelMessagesProvider(widget.channel.id).notifier)
-        .sendMessage(content, taskId: taskId, replyToId: replyToId);
+        .sendMessage(
+          content,
+          taskId: taskId,
+          replyToId: replyToId,
+          attachments: attachmentsToSend,
+        );
 
     if (success) {
       _scrollToBottom();
     }
+  }
+
+  Future<void> _showAttachmentPicker(BuildContext context) async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AttachmentPickerSheet(
+        onCameraSelected: () {
+          Navigator.of(ctx).pop();
+          _pickImage(ImageSource.camera);
+        },
+        onGallerySelected: () {
+          Navigator.of(ctx).pop();
+          _pickGalleryImages();
+        },
+        onDocumentSelected: () {
+          Navigator.of(ctx).pop();
+          _pickDocuments();
+        },
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        _addAndUploadFile(File(picked.path), picked.name, isImage: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick photo: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickGalleryImages() async {
+    try {
+      final picker = ImagePicker();
+      final pickedList = await picker.pickMultiImage(imageQuality: 85);
+      if (pickedList.isNotEmpty) {
+        for (final picked in pickedList) {
+          _addAndUploadFile(File(picked.path), picked.name, isImage: true);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick photos: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickDocuments() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.any,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        for (final file in result.files) {
+          if (file.path != null) {
+            final ext = file.extension?.toLowerCase() ?? '';
+            final isImg =
+                ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].contains(ext);
+            _addAndUploadFile(File(file.path!), file.name, isImage: isImg);
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick files: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _addAndUploadFile(File file, String fileName, {required bool isImage}) {
+    final staged = StagedAttachment(
+      file: file,
+      fileName: fileName,
+      fileSize: file.lengthSync(),
+      isImage: isImage,
+      isUploading: true,
+    );
+    setState(() {
+      _stagedAttachments.add(staged);
+    });
+    _uploadStagedFile(staged);
+  }
+
+  Future<void> _uploadStagedFile(StagedAttachment staged) async {
+    try {
+      final uploaded = await ref
+          .read(channelMessagesProvider(widget.channel.id).notifier)
+          .uploadAttachment(
+            staged.file.path,
+            onProgress: (sent, total) {
+              if (total > 0 && mounted) {
+                setState(() {
+                  staged.uploadProgress = sent / total;
+                });
+              }
+            },
+          );
+      if (mounted) {
+        setState(() {
+          staged.isUploading = false;
+          staged.uploadProgress = 1.0;
+          staged.hasError = false;
+          staged.uploadedModel = uploaded;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          staged.isUploading = false;
+          staged.hasError = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload ${staged.fileName}'),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => _retryStagedAttachment(staged),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _removeStagedAttachment(StagedAttachment staged) {
+    setState(() {
+      _stagedAttachments.remove(staged);
+    });
+  }
+
+  void _retryStagedAttachment(StagedAttachment staged) {
+    setState(() {
+      staged.hasError = false;
+      staged.isUploading = true;
+      staged.uploadProgress = 0.0;
+    });
+    _uploadStagedFile(staged);
   }
 
   void _showForwardDialog(BuildContext context, MessageModel message) {
@@ -729,6 +926,14 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
               ),
             ),
 
+          // Staged Attachments Tray
+          if (_stagedAttachments.isNotEmpty)
+            StagedAttachmentsTray(
+              items: _stagedAttachments,
+              onRemove: _removeStagedAttachment,
+              onRetry: _retryStagedAttachment,
+            ),
+
           // Bottom Input Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -745,6 +950,14 @@ class _ChannelChatScreenState extends ConsumerState<ChannelChatScreen> {
             child: SafeArea(
               child: Row(
                 children: [
+                  // Attach Media / Files Button
+                  IconButton(
+                    icon: const Icon(Icons.attach_file_rounded,
+                        color: AppColors.primary),
+                    tooltip: 'Attach Media or Document',
+                    onPressed: () => _showAttachmentPicker(context),
+                  ),
+
                   // Link Task Button
                   IconButton(
                     icon: const Icon(Icons.add_task_rounded,
@@ -1232,15 +1445,27 @@ class _MessageBubble extends ConsumerWidget {
                           const SizedBox(height: 4),
                         ],
 
-                        // Text content
-                        Text(
-                          message.content,
-                          style: TextStyle(
-                            color: isMe ? Colors.white : AppColors.textPrimary,
-                            fontSize: 14,
-                            height: 1.35,
+                        // Media & Document Attachments
+                        if (message.hasAttachments) ...[
+                          ChatAttachmentView(
+                            attachments: message.attachments,
+                            isMe: isMe,
                           ),
-                        ),
+                          if (message.content.trim().isNotEmpty)
+                            const SizedBox(height: 6),
+                        ],
+
+                        // Text content
+                        if (message.content.trim().isNotEmpty)
+                          Text(
+                            message.content,
+                            style: TextStyle(
+                              color:
+                                  isMe ? Colors.white : AppColors.textPrimary,
+                              fontSize: 14,
+                              height: 1.35,
+                            ),
+                          ),
 
                         // Embedded Interactive Task Card
                         if (message.hasLinkedTask) ...[
@@ -1661,6 +1886,138 @@ class _ProjectTasksList extends ConsumerWidget {
           }).toList(),
         );
       },
+    );
+  }
+}
+
+class _AttachmentPickerSheet extends StatelessWidget {
+  final VoidCallback onCameraSelected;
+  final VoidCallback onGallerySelected;
+  final VoidCallback onDocumentSelected;
+
+  const _AttachmentPickerSheet({
+    required this.onCameraSelected,
+    required this.onGallerySelected,
+    required this.onDocumentSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              const Text(
+                'Share in Chat',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              _PickerOption(
+                icon: Icons.camera_alt_rounded,
+                iconColor: const Color(0xFF6366F1),
+                title: 'Camera',
+                subtitle: 'Capture and share a photo',
+                onTap: onCameraSelected,
+              ),
+              _PickerOption(
+                icon: Icons.photo_library_rounded,
+                iconColor: const Color(0xFF10B981),
+                title: 'Photo Gallery',
+                subtitle: 'Select one or more photos',
+                onTap: onGallerySelected,
+              ),
+              _PickerOption(
+                icon: Icons.insert_drive_file_rounded,
+                iconColor: const Color(0xFFF59E0B),
+                title: 'Document or File',
+                subtitle: 'Share PDFs, docs, spreadsheets, or code',
+                onTap: onDocumentSelected,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PickerOption extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _PickerOption({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: iconColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: iconColor, size: 24),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(
+          fontSize: 12,
+          color: AppColors.textSecondary,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+      onTap: onTap,
     );
   }
 }

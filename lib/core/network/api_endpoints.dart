@@ -86,6 +86,8 @@ class ApiEndpoints {
       '/channels/$channelId/messages?limit=$limit';
   static String channelSendMessage(String channelId) =>
       '/channels/$channelId/messages';
+  static String channelAttachments(String channelId) =>
+      '/channels/$channelId/attachments';
   static String channelRead(String channelId) =>
       '/channels/$channelId/read';
   static String channelDetails(String channelId) =>

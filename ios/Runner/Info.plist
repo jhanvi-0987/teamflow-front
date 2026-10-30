@@ -72,7 +72,9 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>TeamFlow needs camera access for video calls with your team.</string>
+	<string>TeamFlow needs camera access for video calls and sharing photos in team chats.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TeamFlow needs photo library access to share images and files in team chats.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>TeamFlow needs microphone access for voice and video calls with your team.</string>
 </dict>

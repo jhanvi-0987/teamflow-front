@@ -6,6 +6,7 @@ import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../data/datasources/chat_remote_data_source.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/models/channel_model.dart';
+import '../../domain/models/message_attachment_model.dart';
 import '../../domain/models/message_model.dart';
 import '../../domain/models/reaction_model.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -200,18 +201,33 @@ class ChannelMessagesNotifier
     }
   }
 
+  Future<MessageAttachmentModel> uploadAttachment(
+    String filePath, {
+    void Function(int sent, int total)? onProgress,
+  }) {
+    return _repository.uploadAttachment(
+      _channelId,
+      filePath,
+      onProgress: onProgress,
+    );
+  }
+
   Future<bool> sendMessage(
     String content, {
     String? taskId,
     String? replyToId,
+    List<MessageAttachmentModel>? attachments,
   }) async {
-    if (content.trim().isEmpty) return false;
+    final hasContent = content.trim().isNotEmpty;
+    final hasAttachments = attachments != null && attachments.isNotEmpty;
+    if (!hasContent && !hasAttachments) return false;
     try {
       final created = await _repository.sendMessage(
         _channelId,
-        content: content,
+        content: hasContent ? content : null,
         taskId: taskId,
         replyToId: replyToId,
+        attachments: attachments,
       );
       if (!mounted) return true;
       final current = state.value ?? [];

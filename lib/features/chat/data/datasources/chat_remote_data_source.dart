@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../domain/models/channel_model.dart';
+import '../../domain/models/message_attachment_model.dart';
 import '../../domain/models/message_model.dart';
 import '../../domain/models/reaction_model.dart';
 import '../../domain/models/call_session_model.dart';
@@ -20,11 +22,18 @@ abstract class ChatRemoteDataSource {
 
   Future<List<MessageModel>> getMessages(String channelId, {int limit = 50});
 
+  Future<MessageAttachmentModel> uploadAttachment(
+    String channelId,
+    String filePath, {
+    void Function(int sent, int total)? onProgress,
+  });
+
   Future<MessageModel> sendMessage(
     String channelId, {
-    required String content,
+    String? content,
     String? taskId,
     String? replyToId,
+    List<MessageAttachmentModel>? attachments,
   });
 
   Future<void> markAsRead(String channelId);
@@ -136,20 +145,60 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   }
 
   @override
-  Future<MessageModel> sendMessage(
-    String channelId, {
-    required String content,
-    String? taskId,
-    String? replyToId,
+  Future<MessageAttachmentModel> uploadAttachment(
+    String channelId,
+    String filePath, {
+    void Function(int sent, int total)? onProgress,
   }) async {
     try {
+      final fileName = filePath.split(Platform.pathSeparator).last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          filePath,
+          filename: fileName,
+        ),
+      });
+
+      final response = await dio.post(
+        ApiEndpoints.channelAttachments(channelId),
+        data: formData,
+        onSendProgress: onProgress,
+      );
+
+      return MessageAttachmentModel.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  @override
+  Future<MessageModel> sendMessage(
+    String channelId, {
+    String? content,
+    String? taskId,
+    String? replyToId,
+    List<MessageAttachmentModel>? attachments,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (content != null && content.trim().isNotEmpty) {
+        data['content'] = content.trim();
+      }
+      if (taskId != null && taskId.isNotEmpty) {
+        data['taskId'] = taskId;
+      }
+      if (replyToId != null && replyToId.isNotEmpty) {
+        data['replyToId'] = replyToId;
+      }
+      if (attachments != null && attachments.isNotEmpty) {
+        data['attachments'] = attachments.map((a) => a.toJson()).toList();
+      }
+
       final response = await dio.post(
         ApiEndpoints.channelSendMessage(channelId),
-        data: {
-          'content': content.trim(),
-          if (taskId != null && taskId.isNotEmpty) 'taskId': taskId,
-          if (replyToId != null && replyToId.isNotEmpty) 'replyToId': replyToId,
-        },
+        data: data,
       );
       return MessageModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

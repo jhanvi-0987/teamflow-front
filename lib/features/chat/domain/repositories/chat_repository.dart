@@ -1,4 +1,5 @@
 import '../models/channel_model.dart';
+import '../models/message_attachment_model.dart';
 import '../models/message_model.dart';
 import '../models/reaction_model.dart';
 import '../models/call_session_model.dart';
@@ -17,11 +18,18 @@ abstract class ChatRepository {
 
   Future<List<MessageModel>> getMessages(String channelId, {int limit = 50});
 
+  Future<MessageAttachmentModel> uploadAttachment(
+    String channelId,
+    String filePath, {
+    void Function(int sent, int total)? onProgress,
+  });
+
   Future<MessageModel> sendMessage(
     String channelId, {
-    required String content,
+    String? content,
     String? taskId,
     String? replyToId,
+    List<MessageAttachmentModel>? attachments,
   });
 
   Future<void> markAsRead(String channelId);

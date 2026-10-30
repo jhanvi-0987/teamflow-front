@@ -1,4 +1,5 @@
 import '../../domain/models/channel_model.dart';
+import '../../domain/models/message_attachment_model.dart';
 import '../../domain/models/message_model.dart';
 import '../../domain/models/reaction_model.dart';
 import '../../domain/models/call_session_model.dart';
@@ -38,17 +39,31 @@ class ChatRepositoryImpl implements ChatRepository {
       _remoteDataSource.getMessages(channelId, limit: limit);
 
   @override
+  Future<MessageAttachmentModel> uploadAttachment(
+    String channelId,
+    String filePath, {
+    void Function(int sent, int total)? onProgress,
+  }) =>
+      _remoteDataSource.uploadAttachment(
+        channelId,
+        filePath,
+        onProgress: onProgress,
+      );
+
+  @override
   Future<MessageModel> sendMessage(
     String channelId, {
-    required String content,
+    String? content,
     String? taskId,
     String? replyToId,
+    List<MessageAttachmentModel>? attachments,
   }) =>
       _remoteDataSource.sendMessage(
         channelId,
         content: content,
         taskId: taskId,
         replyToId: replyToId,
+        attachments: attachments,
       );
 
   @override
