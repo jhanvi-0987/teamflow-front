@@ -141,3 +141,4 @@ sequenceDiagram
 ## 7. Testing & Verification
 - Unit test suite: `test/features/chat/call_webrtc_test.dart` (covers hardware toggles, WebRTC lifecycle, and role management).
 - Build verification: Tested via `./gradlew assembleDebug` (compile and build pass with Gradle 8.14 and AGP 8.11).
+
